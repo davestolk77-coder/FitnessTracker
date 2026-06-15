@@ -6,6 +6,7 @@ function Trainingen() {
   const [training, setTraining] = useState(null);
   const [gegevens, setGegevens] = useState({});
   const [timer, setTimer] = useState(0);
+  const [melding, setMelding] = useState(false);
   const [cardio, setCardio] = useState({});
 
   const haalVorigeSetOp = (oefening, setNummer) => {
@@ -102,11 +103,20 @@ function Trainingen() {
 useEffect(() => {
   if (timer <= 0) {
     if (timer === 0) {
-      const audio = new Audio(
-        "https://www.soundjay.com/buttons/sounds/button-09.mp3"
-      );
+     const audio = new Audio("/ping.mp3");
+
+audio.volume = 1;
+
+audio.play().catch((err) => {
+  console.log("Geluid geblokkeerd", err);
+});
 
       audio.play().catch(() => {});
+      setMelding(true);
+
+setTimeout(() => {
+  setMelding(false);
+}, 5000);
     }
 
     return;
@@ -149,6 +159,23 @@ useEffect(() => {
       </button>
 
       <h1>{training}</h1>
+
+      {melding && (
+  <div
+    style={{
+      backgroundColor: "#22c55e",
+      color: "white",
+      padding: "15px",
+      borderRadius: "12px",
+      marginBottom: "20px",
+      fontWeight: "bold",
+      fontSize: "18px",
+      textAlign: "center",
+    }}
+  >
+    ✅ Rusttijd voorbij!
+  </div>
+)}
 
       {trainingen[training].map((oefening) => (
         <div
