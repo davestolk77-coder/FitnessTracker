@@ -99,8 +99,18 @@ function Trainingen() {
     }));
   };
 
-  useEffect(() => {
-  if (timer <= 0) return;
+useEffect(() => {
+  if (timer <= 0) {
+    if (timer === 0) {
+      const audio = new Audio(
+        "https://www.soundjay.com/buttons/sounds/button-09.mp3"
+      );
+
+      audio.play().catch(() => {});
+    }
+
+    return;
+  }
 
   const interval = setInterval(() => {
     setTimer((vorige) => vorige - 1);
