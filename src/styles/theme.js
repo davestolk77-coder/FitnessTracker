@@ -40,4 +40,39 @@ export const theme = {
     padding: "12px 20px",
     fontWeight: "bold",
   },
+
+  exerciseCard: {
+  backgroundColor: "#1f2937",
+  border: "1px solid #374151",
+  borderRadius: "16px",
+  padding: "20px",
+  marginBottom: "20px",
+},
+
+setCard: {
+  backgroundColor: "#374151",
+  border: "1px solid #4b5563",
+  borderRadius: "10px",
+  padding: "10px",
+  marginBottom: "10px",
+},
+
+smallButton: {
+  backgroundColor: "#374151",
+  color: "white",
+  border: "none",
+  borderRadius: "8px",
+  padding: "8px 12px",
+  cursor: "pointer",
+},
+
+successCard: {
+  backgroundColor: "#22c55e",
+  color: "white",
+  padding: "15px",
+  borderRadius: "12px",
+  marginBottom: "20px",
+  fontWeight: "bold",
+  textAlign: "center",
+},
 };

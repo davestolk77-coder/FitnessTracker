@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { trainingen } from "../data/trainingen";
 import CardioForm from "../components/CardioForm";
+import { theme } from "../styles/theme";
 
 function Trainingen() {
   const [training, setTraining] = useState(null);
@@ -132,17 +133,18 @@ setTimeout(() => {
   if (!training) {
     return (
       <div>
-        <h1>🏋️ Trainingen</h1>
+        <h1 style={theme.title}>
+  🏋️ Trainingen
+</h1>
 
         {Object.keys(trainingen).map((naam) => (
           <div key={naam}>
             <button
               onClick={() => setTraining(naam)}
-              style={{
-                marginBottom: "10px",
-                padding: "15px",
-                width: "300px",
-              }}
+              style={{...theme.button,
+              width: "100%",
+              marginBottom: "10px",
+}}
             >
               {naam}
             </button>
@@ -154,25 +156,22 @@ setTimeout(() => {
 
   return (
     <div>
-      <button onClick={() => setTraining(null)}>
+      <button
+  onClick={() => setTraining(null)}
+  style={{
+    ...theme.smallButton,
+    marginBottom: "20px",
+  }}
+>
         ← Terug
       </button>
 
-      <h1>{training}</h1>
+     <h1 style={theme.title}>
+  {training}
+</h1>
 
       {melding && (
-  <div
-    style={{
-      backgroundColor: "#22c55e",
-      color: "white",
-      padding: "15px",
-      borderRadius: "12px",
-      marginBottom: "20px",
-      fontWeight: "bold",
-      fontSize: "18px",
-      textAlign: "center",
-    }}
-  >
+  <div style={theme.successCard}>
     ✅ Rusttijd voorbij!
   </div>
 )}
@@ -180,17 +179,16 @@ setTimeout(() => {
       {trainingen[training].map((oefening) => (
         <div
           key={oefening}
-          style={{
-            border: "1px solid #ddd",
-            padding: "20px",
-            marginBottom: "20px",
-            borderRadius: "16px",
-            backgroundColor: "white",
-            boxShadow:
-              "0 2px 6px rgba(0,0,0,0.08)",
-          }}
+          style={theme.exerciseCard}
         >
-          <h3>{oefening}</h3>
+          <h3
+  style={{
+    color: theme.colors.text,
+    marginTop: 0,
+  }}
+>
+  {oefening}
+</h3>
 
           <div
             style={{
@@ -302,13 +300,7 @@ setTimeout(() => {
                 )}
 
                 <div
-                  style={{
-                    border: "1px solid #ddd",
-                    borderRadius: "8px",
-                    padding: "10px",
-                    marginBottom: "10px",
-                    backgroundColor: "#fafafa",
-                  }}
+                  style={theme.setCard}
                 >
                   <div
                     style={{
@@ -344,12 +336,10 @@ setTimeout(() => {
                         )
                       }
                       style={{
-                        width: "100%",
-                        padding: "10px",
-                        fontSize: "16px",
-                        boxSizing:
-                          "border-box",
-                      }}
+  ...theme.input,
+  width: "100%",
+  boxSizing: "border-box",
+}}
                     />
                   </div>
 
@@ -423,10 +413,10 @@ setTimeout(() => {
           alert("Training opgeslagen!");
         }}
         style={{
-          padding: "15px",
-          fontSize: "16px",
-          marginTop: "20px",
-        }}
+  ...theme.button,
+  width: "100%",
+  marginTop: "20px",
+}}
       >
         Training Opslaan
       </button>
