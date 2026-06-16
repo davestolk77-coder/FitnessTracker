@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { theme } from "../styles/theme";
 
 function CardioForm({ onCardioChange }) {
   const [type, setType] = useState("Loopband");
@@ -29,19 +30,23 @@ function CardioForm({ onCardioChange }) {
   };
 
   return (
-    <div
-      style={{
-        border: "1px solid #ddd",
-        borderRadius: "16px",
-        padding: "20px",
-        marginTop: "20px",
-        backgroundColor: "#f9f9f9",
-      }}
-    >
-      <h3>🏃 Cardio</h3>
+    <div style={theme.card}>
+      <h2
+        style={{
+          color: theme.colors.primary,
+          marginTop: 0,
+        }}
+      >
+        🏃 Cardio
+      </h2>
 
-      <label>Type</label>
-      <br />
+      <label
+        style={{
+          color: theme.colors.text,
+        }}
+      >
+        Type
+      </label>
 
       <select
         value={type}
@@ -49,8 +54,9 @@ function CardioForm({ onCardioChange }) {
           wijzigType(e.target.value)
         }
         style={{
+          ...theme.input,
           width: "100%",
-          padding: "10px",
+          marginTop: "5px",
           marginBottom: "15px",
         }}
       >
@@ -59,8 +65,13 @@ function CardioForm({ onCardioChange }) {
         <option>Fiets</option>
       </select>
 
-      <label>Tijd (minuten)</label>
-      <br />
+      <label
+        style={{
+          color: theme.colors.text,
+        }}
+      >
+        Tijd (minuten)
+      </label>
 
       <input
         type="number"
@@ -68,16 +79,22 @@ function CardioForm({ onCardioChange }) {
           wijzigVeld("tijd", e.target.value)
         }
         style={{
+          ...theme.input,
           width: "100%",
-          padding: "10px",
+          marginTop: "5px",
           marginBottom: "15px",
         }}
       />
 
       {type === "Loopband" && (
         <>
-          <label>Afstand (km)</label>
-          <br />
+          <label
+            style={{
+              color: theme.colors.text,
+            }}
+          >
+            Afstand (km)
+          </label>
 
           <input
             type="number"
@@ -89,14 +106,20 @@ function CardioForm({ onCardioChange }) {
               )
             }
             style={{
+              ...theme.input,
               width: "100%",
-              padding: "10px",
+              marginTop: "5px",
               marginBottom: "15px",
             }}
           />
 
-          <label>Snelheid (km/u)</label>
-          <br />
+          <label
+            style={{
+              color: theme.colors.text,
+            }}
+          >
+            Snelheid (km/u)
+          </label>
 
           <input
             type="number"
@@ -108,14 +131,20 @@ function CardioForm({ onCardioChange }) {
               )
             }
             style={{
+              ...theme.input,
               width: "100%",
-              padding: "10px",
+              marginTop: "5px",
               marginBottom: "15px",
             }}
           />
 
-          <label>Helling (%)</label>
-          <br />
+          <label
+            style={{
+              color: theme.colors.text,
+            }}
+          >
+            Helling (%)
+          </label>
 
           <input
             type="number"
@@ -126,8 +155,9 @@ function CardioForm({ onCardioChange }) {
               )
             }
             style={{
+              ...theme.input,
               width: "100%",
-              padding: "10px",
+              marginTop: "5px",
             }}
           />
         </>
@@ -135,8 +165,13 @@ function CardioForm({ onCardioChange }) {
 
       {type === "Crosstrainer" && (
         <>
-          <label>Niveau</label>
-          <br />
+          <label
+            style={{
+              color: theme.colors.text,
+            }}
+          >
+            Niveau
+          </label>
 
           <input
             type="number"
@@ -147,8 +182,9 @@ function CardioForm({ onCardioChange }) {
               )
             }
             style={{
+              ...theme.input,
               width: "100%",
-              padding: "10px",
+              marginTop: "5px",
             }}
           />
         </>
@@ -156,8 +192,13 @@ function CardioForm({ onCardioChange }) {
 
       {type === "Fiets" && (
         <>
-          <label>Afstand (km)</label>
-          <br />
+          <label
+            style={{
+              color: theme.colors.text,
+            }}
+          >
+            Afstand (km)
+          </label>
 
           <input
             type="number"
@@ -169,14 +210,20 @@ function CardioForm({ onCardioChange }) {
               )
             }
             style={{
+              ...theme.input,
               width: "100%",
-              padding: "10px",
+              marginTop: "5px",
               marginBottom: "15px",
             }}
           />
 
-          <label>Weerstand</label>
-          <br />
+          <label
+            style={{
+              color: theme.colors.text,
+            }}
+          >
+            Weerstand
+          </label>
 
           <input
             type="number"
@@ -187,8 +234,9 @@ function CardioForm({ onCardioChange }) {
               )
             }
             style={{
+              ...theme.input,
               width: "100%",
-              padding: "10px",
+              marginTop: "5px",
             }}
           />
         </>

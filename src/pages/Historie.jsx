@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { theme } from "../styles/theme";
 
 function Historie() {
   const [trainingen, setTrainingen] = useState([]);
@@ -14,10 +15,21 @@ function Historie() {
 
   return (
     <div>
-      <h1>📜 Historie</h1>
+      <h1 style={theme.title}>
+        📜 Historie
+      </h1>
 
       {trainingen.length === 0 ? (
-        <p>Geen trainingen gevonden.</p>
+        <div style={theme.card}>
+          <p
+            style={{
+              color: theme.colors.text,
+              margin: 0,
+            }}
+          >
+            Geen trainingen gevonden.
+          </p>
+        </div>
       ) : (
         trainingen
           .slice()
@@ -25,37 +37,65 @@ function Historie() {
           .map((training, index) => (
             <div
               key={index}
-              style={{
-                border: "1px solid #ccc",
-                padding: "15px",
-                marginBottom: "20px",
-                borderRadius: "10px",
-                backgroundColor: "white",
-              }}
+              style={theme.card}
             >
-              <h3>{training.training}</h3>
+              <h2
+                style={{
+                  color: theme.colors.primary,
+                  marginTop: 0,
+                }}
+              >
+                {training.training}
+              </h2>
 
-              <p>
-                <strong>Datum:</strong>{" "}
+              <p
+                style={{
+                  color:
+                    theme.colors.textSecondary,
+                }}
+              >
+                📅{" "}
                 {new Date(
                   training.datum
                 ).toLocaleString("nl-NL")}
               </p>
 
               {Object.entries(
-                training.oefeningen
+                training.oefeningen || {}
               ).map(([oefening, sets]) => (
                 <div
                   key={oefening}
                   style={{
-                    marginBottom: "15px",
+                    backgroundColor:
+                      theme.colors.surface,
+                    padding: "12px",
+                    borderRadius: "10px",
+                    marginBottom: "12px",
                   }}
                 >
-                  <strong>{oefening}</strong>
+                  <div
+                    style={{
+                      color:
+                        theme.colors.text,
+                      fontWeight: "bold",
+                      marginBottom: "8px",
+                    }}
+                  >
+                    {oefening}
+                  </div>
 
-                  {Object.entries(sets).map(
+                  {Object.entries(
+                    sets || {}
+                  ).map(
                     ([setNr, setData]) => (
-                      <div key={setNr}>
+                      <div
+                        key={setNr}
+                        style={{
+                          color:
+                            theme.colors.textSecondary,
+                          marginBottom: "4px",
+                        }}
+                      >
                         Set {setNr}:{" "}
                         {setData.gewicht} kg ×{" "}
                         {setData.reps}
@@ -64,68 +104,6 @@ function Historie() {
                   )}
                 </div>
               ))}
-
-              {training.cardio && (
-                <div
-                  style={{
-                    marginTop: "20px",
-                    padding: "15px",
-                    borderTop:
-                      "1px solid #ddd",
-                  }}
-                >
-                  <h4>🏃 Cardio</h4>
-
-                  <div>
-                    <strong>Type:</strong>{" "}
-                    {training.cardio.type}
-                  </div>
-
-                  {training.cardio.tijd && (
-                    <div>
-                      <strong>Tijd:</strong>{" "}
-                      {training.cardio.tijd} min
-                    </div>
-                  )}
-
-                  {training.cardio.afstand && (
-                    <div>
-                      <strong>Afstand:</strong>{" "}
-                      {training.cardio.afstand} km
-                    </div>
-                  )}
-
-                  {training.cardio.snelheid && (
-                    <div>
-                      <strong>Snelheid:</strong>{" "}
-                      {training.cardio.snelheid}
-                      {" "}km/u
-                    </div>
-                  )}
-
-                  {training.cardio.helling && (
-                    <div>
-                      <strong>Helling:</strong>{" "}
-                      {training.cardio.helling}
-                      {" "}%
-                    </div>
-                  )}
-
-                  {training.cardio.niveau && (
-                    <div>
-                      <strong>Niveau:</strong>{" "}
-                      {training.cardio.niveau}
-                    </div>
-                  )}
-
-                  {training.cardio.weerstand && (
-                    <div>
-                      <strong>Weerstand:</strong>{" "}
-                      {training.cardio.weerstand}
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
           ))
       )}

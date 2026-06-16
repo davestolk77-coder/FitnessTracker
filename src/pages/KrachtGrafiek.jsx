@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { theme } from "../styles/theme";
 
 import {
   LineChart,
@@ -25,11 +26,11 @@ function KrachtGrafiek() {
     const uniekeOefeningen = new Set();
 
     historie.forEach((training) => {
-      Object.keys(training.oefeningen).forEach(
-        (oefening) => {
-          uniekeOefeningen.add(oefening);
-        }
-      );
+      Object.keys(
+        training.oefeningen || {}
+      ).forEach((oefening) => {
+        uniekeOefeningen.add(oefening);
+      });
     });
 
     const lijst =
@@ -54,7 +55,7 @@ function KrachtGrafiek() {
 
     historie.forEach((training, index) => {
       const oefening =
-        training.oefeningen[
+        training.oefeningen?.[
           gekozenOefening
         ];
 
@@ -85,61 +86,79 @@ function KrachtGrafiek() {
 
   return (
     <div>
-      <h1>💪 Krachtontwikkeling</h1>
+      <h1 style={theme.title}>
+        💪 Krachtontwikkeling
+      </h1>
 
-      <select
-        value={gekozenOefening}
-        onChange={(e) =>
-          setGekozenOefening(
-            e.target.value
-          )
-        }
-        style={{
-          width: "100%",
-          padding: "12px",
-          marginBottom: "20px",
-          fontSize: "16px",
-        }}
-      >
-        {oefeningen.map((oefening) => (
-          <option
-            key={oefening}
-            value={oefening}
-          >
-            {oefening}
-          </option>
-        ))}
-      </select>
-
-      {data.length === 0 ? (
-        <p>Geen gegevens gevonden.</p>
-      ) : (
-        <div
+      <div style={theme.card}>
+        <select
+          value={gekozenOefening}
+          onChange={(e) =>
+            setGekozenOefening(
+              e.target.value
+            )
+          }
           style={{
+            ...theme.input,
             width: "100%",
-            height: 300,
+            marginBottom: "20px",
           }}
         >
-          <ResponsiveContainer>
-            <LineChart data={data}>
-              <CartesianGrid
-                strokeDasharray="3 3"
-              />
+          {oefeningen.map((oefening) => (
+            <option
+              key={oefening}
+              value={oefening}
+            >
+              {oefening}
+            </option>
+          ))}
+        </select>
 
-              <XAxis dataKey="training" />
+        {data.length === 0 ? (
+          <p
+            style={{
+              color:
+                theme.colors.text,
+            }}
+          >
+            Geen gegevens gevonden.
+          </p>
+        ) : (
+          <div
+            style={{
+              width: "100%",
+              height: 350,
+            }}
+          >
+            <ResponsiveContainer>
+              <LineChart data={data}>
+                <CartesianGrid
+                  stroke="#4b5563"
+                  strokeDasharray="3 3"
+                />
 
-              <YAxis />
+                <XAxis
+                  dataKey="training"
+                  stroke="#d1d5db"
+                />
 
-              <Tooltip />
+                <YAxis
+                  stroke="#d1d5db"
+                />
 
-              <Line
-                type="monotone"
-                dataKey="gewicht"
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      )}
+                <Tooltip />
+
+                <Line
+                  type="monotone"
+                  dataKey="gewicht"
+                  stroke="#22c55e"
+                  strokeWidth={3}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

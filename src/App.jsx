@@ -8,101 +8,107 @@ import Voortgang from "./pages/Voortgang";
 import KrachtGrafiek from "./pages/KrachtGrafiek";
 
 function App() {
-  const [pagina, setPagina] = useState("dashboard");
+const [pagina, setPagina] = useState("dashboard");
 
-  return (
-    <div
-  style={{
-    padding: "20px",
-    paddingBottom: "90px",
-  }}
->
-     {pagina === "dashboard" && <Dashboard />}
-     {pagina === "trainingen" && <Trainingen />}
-     {pagina === "historie" && <Historie />}
-     {pagina === "records" && <Records />}
-     {pagina === "voortgang" && <Voortgang />}
-     {pagina === "kracht" && <KrachtGrafiek />}
+const knopStyle = (naam) => ({
+fontSize: "28px",
+padding: "10px",
+minWidth: "60px",
+backgroundColor:
+pagina === naam
+? "#22c55e"
+: "#374151",
+color: "white",
+border: "none",
+borderRadius: "12px",
+});
 
-      <hr />
-      <div 
-
-      style={{
-  position: "fixed",
-  bottom: 0,
-  left: 0,
-  right: 0,
-
-  display: "flex",
-  justifyContent: "space-around",
-  alignItems: "center",
-
-  paddingTop: "12px",
-  paddingBottom: "35px",
-
-  backgroundColor: "white",
-  borderTop: "1px solid #ddd",
-
-  boxShadow:
-    "0 -2px 6px rgba(0,0,0,0.08)",
-
-  zIndex: 1000,
+return (
+<div
+style={{
+padding: "20px",
+paddingBottom: "120px",
+backgroundColor: "#111827",
+color: "white",
+minHeight: "100vh",
 }}
-      >
-<button onClick={() => setPagina("dashboard")}
-  style={{
-    fontSize: "28px",
-    padding: "10px",
-    minWidth: "60px",
-  }}>
-  📊
-</button>
+>
+{pagina === "dashboard" && <Dashboard />}
+{pagina === "trainingen" && <Trainingen />}
+{pagina === "historie" && <Historie />}
+{pagina === "records" && <Records />}
+{pagina === "voortgang" && <Voortgang />}
+{pagina === "kracht" && <KrachtGrafiek />}
 
-<button onClick={() => setPagina("trainingen")}
-  style={{
-    fontSize: "28px",
-    padding: "10px",
-    minWidth: "60px",
-  }}>
-  🏋️
-</button>
+```
+  <div
+    style={{
+      position: "fixed",
+      bottom: 0,
+      left: 0,
+      right: 0,
 
-<button onClick={() => setPagina("historie")}style={{
-    fontSize: "28px",
-    padding: "10px",
-    minWidth: "60px",
-  }}>
-  📜
-</button>
+      display: "flex",
+      justifyContent: "space-around",
+      alignItems: "center",
 
-<button onClick={() => setPagina("records")}
-  style={{
-    fontSize: "28px",
-    padding: "10px",
-    minWidth: "60px",
-  }}>
-  🏆
-</button>
+      paddingTop: "12px",
+      paddingBottom: "45px",
 
-<button onClick={() => setPagina("voortgang")}
-  style={{
-    fontSize: "28px",
-    padding: "10px",
-    minWidth: "60px",
-  }}>
-  📈
-</button>
+      backgroundColor: "#1f2937",
+      borderTop: "1px solid #374151",
 
-<button onClick={() => setPagina("kracht")}style={{
-    fontSize: "28px",
-    padding: "10px",
-    minWidth: "60px",
-  }}>
-  💪
-</button>
-      </div>
-    </div>
-  );
+      boxShadow:
+        "0 -2px 6px rgba(0,0,0,0.20)",
+
+      zIndex: 1000,
+    }}
+  >
+    <button
+      onClick={() => setPagina("dashboard")}
+      style={knopStyle("dashboard")}
+    >
+      📊
+    </button>
+
+    <button
+      onClick={() => setPagina("trainingen")}
+      style={knopStyle("trainingen")}
+    >
+      🏋️
+    </button>
+
+    <button
+      onClick={() => setPagina("historie")}
+      style={knopStyle("historie")}
+    >
+      📜
+    </button>
+
+    <button
+      onClick={() => setPagina("records")}
+      style={knopStyle("records")}
+    >
+      🏆
+    </button>
+
+    <button
+      onClick={() => setPagina("voortgang")}
+      style={knopStyle("voortgang")}
+    >
+      📈
+    </button>
+
+    <button
+      onClick={() => setPagina("kracht")}
+      style={knopStyle("kracht")}
+    >
+      💪
+    </button>
+  </div>
+</div>
+
+);
 }
 
 export default App;

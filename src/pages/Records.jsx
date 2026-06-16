@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { theme } from "../styles/theme";
 
 function Records() {
   const [records, setRecords] = useState({});
@@ -12,9 +13,11 @@ function Records() {
     const nieuweRecords = {};
 
     historie.forEach((training) => {
-      Object.entries(training.oefeningen).forEach(
-        ([oefening, sets]) => {
-          Object.values(sets).forEach((setData) => {
+      Object.entries(
+        training.oefeningen || {}
+      ).forEach(([oefening, sets]) => {
+        Object.values(sets || {}).forEach(
+          (setData) => {
             const gewicht = Number(
               setData.gewicht || 0
             );
@@ -25,9 +28,9 @@ function Records() {
             ) {
               nieuweRecords[oefening] = gewicht;
             }
-          });
-        }
-      );
+          }
+        );
+      });
     });
 
     setRecords(nieuweRecords);
@@ -35,30 +38,55 @@ function Records() {
 
   return (
     <div>
-      <h1>🏆 Persoonlijke Records</h1>
+      <h1 style={theme.title}>
+        🏆 Persoonlijke Records
+      </h1>
 
       {Object.keys(records).length === 0 ? (
-        <p>Nog geen records gevonden.</p>
+        <div style={theme.card}>
+          <p
+            style={{
+              color: theme.colors.text,
+              margin: 0,
+            }}
+          >
+            Nog geen records gevonden.
+          </p>
+        </div>
       ) : (
-        Object.entries(records).map(
-          ([oefening, gewicht]) => (
+        Object.entries(records)
+          .sort((a, b) =>
+            a[0].localeCompare(b[0])
+          )
+          .map(([oefening, gewicht]) => (
             <div
               key={oefening}
-              style={{
-                border: "1px solid #ccc",
-                padding: "15px",
-                marginBottom: "10px",
-                borderRadius: "10px",
-              }}
+              style={theme.card}
             >
-              <strong>{oefening}</strong>
+              <div
+                style={{
+                  color:
+                    theme.colors.text,
+                  fontSize: "18px",
+                  fontWeight: "bold",
+                  marginBottom: "10px",
+                }}
+              >
+                {oefening}
+              </div>
 
-              <div>
-                Beste gewicht: {gewicht} kg
+              <div
+                style={{
+                  color:
+                    theme.colors.primary,
+                  fontSize: "22px",
+                  fontWeight: "bold",
+                }}
+              >
+                🏆 {gewicht} kg
               </div>
             </div>
-          )
-        )
+          ))
       )}
     </div>
   );
