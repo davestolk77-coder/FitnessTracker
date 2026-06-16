@@ -143,7 +143,16 @@ setTimeout(() => {
               onClick={() => setTraining(naam)}
               style={{...theme.button,
               width: "100%",
-              marginBottom: "10px",
+              minHeight: "140px",
+
+              fontSize: "34px",
+              fontWeight: "bold",
+
+              marginBottom: "20px",
+
+              borderRadius: "24px",
+
+              boxShadow: "0 4px 10px rgba(0,0,0,0.25)",
 }}
             >
               {naam}
