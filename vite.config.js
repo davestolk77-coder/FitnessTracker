@@ -15,9 +15,9 @@ export default defineConfig({
         description:
           "Persoonlijke fitness tracker",
 
-        theme_color: "#ffffff",
+        theme_color: "#22c55e",
 
-        background_color: "#ffffff",
+background_color: "#111827",
 
         display: "standalone",
 
