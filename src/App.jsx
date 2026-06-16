@@ -32,37 +32,72 @@ function App() {
   bottom: 0,
   left: 0,
   right: 0,
+
   display: "flex",
   justifyContent: "space-around",
   alignItems: "center",
-  padding: "12px",
+
+  paddingTop: "12px",
+  paddingBottom: "35px",
+
   backgroundColor: "white",
   borderTop: "1px solid #ddd",
-  boxShadow: "0 -2px 6px rgba(0,0,0,0.08)",
+
+  boxShadow:
+    "0 -2px 6px rgba(0,0,0,0.08)",
+
   zIndex: 1000,
 }}
       >
-<button onClick={() => setPagina("dashboard")}>
+<button onClick={() => setPagina("dashboard")}
+  style={{
+    fontSize: "28px",
+    padding: "10px",
+    minWidth: "60px",
+  }}>
   📊
 </button>
 
-<button onClick={() => setPagina("trainingen")}>
+<button onClick={() => setPagina("trainingen")}
+  style={{
+    fontSize: "28px",
+    padding: "10px",
+    minWidth: "60px",
+  }}>
   🏋️
 </button>
 
-<button onClick={() => setPagina("historie")}>
+<button onClick={() => setPagina("historie")}style={{
+    fontSize: "28px",
+    padding: "10px",
+    minWidth: "60px",
+  }}>
   📜
 </button>
 
-<button onClick={() => setPagina("records")}>
+<button onClick={() => setPagina("records")}
+  style={{
+    fontSize: "28px",
+    padding: "10px",
+    minWidth: "60px",
+  }}>
   🏆
 </button>
 
-<button onClick={() => setPagina("voortgang")}>
+<button onClick={() => setPagina("voortgang")}
+  style={{
+    fontSize: "28px",
+    padding: "10px",
+    minWidth: "60px",
+  }}>
   📈
 </button>
 
-<button onClick={() => setPagina("kracht")}>
+<button onClick={() => setPagina("kracht")}style={{
+    fontSize: "28px",
+    padding: "10px",
+    minWidth: "60px",
+  }}>
   💪
 </button>
       </div>
