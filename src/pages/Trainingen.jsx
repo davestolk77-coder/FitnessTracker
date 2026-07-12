@@ -1,436 +1,173 @@
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { trainingen } from "../data/trainingen";
 import CardioForm from "../components/CardioForm";
-import { theme } from "../styles/theme";
+import { AppHeader, AppScreen, Card, PrimaryButton, SecondaryButton, StatusBadge } from "../components/ui";
+import { leesJson } from "../utils/storage";
 
-function Trainingen() {
-  const [training, setTraining] = useState(null);
-  const [gegevens, setGegevens] = useState({});
-  const [timer, setTimer] = useState(0);
+const SETS = [1, 2, 3];
+const ACTIEVE_TRAINING_KEY = "actieveTraining";
+const huidigTijdstip = () => Date.now();
+
+function nieuweSessie(training) {
+  return { training, gegevens: {}, cardio: {}, statussen: {}, voltooideSets: [], timer: 0, startTijd: huidigTijdstip() };
+}
+
+function herstelSessie(initialTraining) {
+  if (initialTraining && trainingen[initialTraining]) return nieuweSessie(initialTraining);
+  const opgeslagen = leesJson(ACTIEVE_TRAINING_KEY, null);
+  if (!opgeslagen || !trainingen[opgeslagen.training]) return null;
+  return {
+    ...nieuweSessie(opgeslagen.training),
+    ...opgeslagen,
+    gegevens: opgeslagen.gegevens && typeof opgeslagen.gegevens === "object" ? opgeslagen.gegevens : {},
+    cardio: opgeslagen.cardio && typeof opgeslagen.cardio === "object" ? opgeslagen.cardio : {},
+    statussen: opgeslagen.statussen && typeof opgeslagen.statussen === "object" ? opgeslagen.statussen : {},
+    voltooideSets: Array.isArray(opgeslagen.voltooideSets) ? opgeslagen.voltooideSets : [],
+  };
+}
+
+function Trainingen({ initialTraining, onTrainingClosed }) {
+  const [sessie, setSessie] = useState(() => herstelSessie(initialTraining));
+  const [geselecteerd, setGeselecteerd] = useState(null);
   const [melding, setMelding] = useState(false);
-  const [cardio, setCardio] = useState({});
+  const bezigMetAfronden = useRef(false);
+
+  const historie = () => {
+    const opgeslagen = leesJson("trainingHistorie", []);
+    return Array.isArray(opgeslagen) ? opgeslagen : [];
+  };
+
+  useEffect(() => {
+    if (sessie) localStorage.setItem(ACTIEVE_TRAINING_KEY, JSON.stringify(sessie));
+  }, [sessie]);
+
+  useEffect(() => {
+    const interval = setInterval(() => setSessie((vorige) => {
+      if (!vorige || vorige.timer <= 0) return vorige;
+      if (vorige.timer === 1) {
+        const audio = new Audio("/ping.mp3");
+        audio.volume = 1;
+        audio.play().catch(() => {});
+        setMelding(true);
+        setTimeout(() => setMelding(false), 5000);
+      }
+      return { ...vorige, timer: vorige.timer - 1 };
+    }), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const kiesTraining = (training) => {
+    const volgende = nieuweSessie(training);
+    localStorage.setItem(ACTIEVE_TRAINING_KEY, JSON.stringify(volgende));
+    setSessie(volgende);
+    setGeselecteerd(null);
+  };
+
+  const stopTraining = () => {
+    if (!confirm("Training stoppen? De actieve trainingsgegevens worden verwijderd.")) return;
+    localStorage.removeItem(ACTIEVE_TRAINING_KEY);
+    setSessie(null);
+    setGeselecteerd(null);
+    onTrainingClosed();
+  };
+
+  const openOefening = (oefening) => {
+    setSessie((vorige) => ({ ...vorige, statussen: { ...vorige.statussen, [oefening]: vorige.statussen[oefening] === "Voltooid" ? "Voltooid" : "Bezig" } }));
+    setGeselecteerd(oefening);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   const haalVorigeSetOp = (oefening, setNummer) => {
-    const historie =
-      JSON.parse(
-        localStorage.getItem("trainingHistorie")
-      ) || [];
-
-    for (let i = historie.length - 1; i >= 0; i--) {
-      const trainingData = historie[i];
-
-      if (
-        trainingData.oefeningen[oefening] &&
-        trainingData.oefeningen[oefening][setNummer]
-      ) {
-        return trainingData.oefeningen[oefening][setNummer];
-      }
+    const items = historie();
+    for (let i = items.length - 1; i >= 0; i--) {
+      const vorige = items[i]?.oefeningen?.[oefening]?.[setNummer];
+      if (vorige) return vorige;
     }
-
     return null;
   };
 
   const gebruikVorigeTraining = (oefening) => {
-    const historie =
-      JSON.parse(
-        localStorage.getItem("trainingHistorie")
-      ) || [];
-
-    for (let i = historie.length - 1; i >= 0; i--) {
-      const trainingData = historie[i];
-
-      if (trainingData.oefeningen[oefening]) {
-        setGegevens((vorige) => ({
-          ...vorige,
-          [oefening]:
-            trainingData.oefeningen[oefening],
-        }));
-
+    const items = historie();
+    for (let i = items.length - 1; i >= 0; i--) {
+      if (items[i]?.oefeningen?.[oefening]) {
+        setSessie((vorige) => ({ ...vorige, gegevens: { ...vorige.gegevens, [oefening]: items[i].oefeningen[oefening] } }));
         return;
       }
     }
-
     alert("Geen eerdere training gevonden.");
   };
 
-  const haalRecordOp = (oefening) => {
-    const historie =
-      JSON.parse(
-        localStorage.getItem("trainingHistorie")
-      ) || [];
-
-    let record = 0;
-
-    historie.forEach((training) => {
-      if (training.oefeningen[oefening]) {
-        Object.values(
-          training.oefeningen[oefening]
-        ).forEach((setData) => {
-          const gewicht = Number(
-            setData.gewicht || 0
-          );
-
-          if (gewicht > record) {
-            record = gewicht;
-          }
-        });
-      }
-    });
-
-    return record;
+  const haalRecordOp = (oefening) => historie().reduce((record, item) => Math.max(record, ...Object.values(item?.oefeningen?.[oefening] || {}).map((setData) => Number(setData?.gewicht || 0))), 0);
+  const wijzigSet = (oefening, setNummer, veld, waarde) => setSessie((vorige) => ({ ...vorige, gegevens: { ...vorige.gegevens, [oefening]: { ...vorige.gegevens[oefening], [setNummer]: { ...vorige.gegevens[oefening]?.[setNummer], [veld]: waarde } } } }));
+  const stapWaarde = (oefening, setNummer, veld, stap) => {
+    const huidig = Number(sessie.gegevens[oefening]?.[setNummer]?.[veld] || 0);
+    wijzigSet(oefening, setNummer, veld, String(Math.max(0, huidig + stap)));
+  };
+  const voltooiSet = (oefening, setNummer) => {
+    const sleutel = `${oefening}-${setNummer}`;
+    setSessie((vorige) => ({ ...vorige, voltooideSets: vorige.voltooideSets.includes(sleutel) ? vorige.voltooideSets : [...vorige.voltooideSets, sleutel], timer: 60 }));
+  };
+  const slaOefeningOp = () => {
+    setSessie((vorige) => ({ ...vorige, statussen: { ...vorige.statussen, [geselecteerd]: "Voltooid" } }));
+    setGeselecteerd(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const wijzigSet = (
-    oefening,
-    setNummer,
-    veld,
-    waarde
-  ) => {
-    setGegevens((vorige) => ({
-      ...vorige,
-
-      [oefening]: {
-        ...vorige[oefening],
-
-        [setNummer]: {
-          ...vorige[oefening]?.[setNummer],
-
-          [veld]: waarde,
-        },
-      },
-    }));
+  const trainingOpslaan = () => {
+    if (bezigMetAfronden.current) return;
+    bezigMetAfronden.current = true;
+    const duur = Math.max(1, Math.round((huidigTijdstip() - sessie.startTijd) / 1000));
+    const trainingData = { datum: new Date().toISOString(), training: sessie.training, oefeningen: sessie.gegevens, cardio: sessie.cardio, duur, voltooideSets: sessie.voltooideSets.length, voltooideOefeningen: trainingen[sessie.training].length };
+    const bestaandeTrainingen = historie();
+    bestaandeTrainingen.push(trainingData);
+    localStorage.setItem("trainingHistorie", JSON.stringify(bestaandeTrainingen));
+    localStorage.removeItem(ACTIEVE_TRAINING_KEY);
+    alert("Training opgeslagen!");
+    setSessie(null);
+    onTrainingClosed();
   };
 
-useEffect(() => {
-  if (timer <= 0) {
-    if (timer === 0) {
-     const audio = new Audio("/ping.mp3");
+  if (!sessie) return <AppScreen><AppHeader eyebrow="Aan de slag" title="Kies je training" subtitle="Twee complete trainingen, ieder met zes onderdelen." />{Object.keys(trainingen).map((naam) => <SecondaryButton key={naam} className="training-choice" icon="◆" onClick={() => kiesTraining(naam)}>{naam}<span aria-hidden="true">›</span></SecondaryButton>)}</AppScreen>;
 
-audio.volume = 1;
+  const onderdelen = trainingen[sessie.training];
+  const aantalVoltooid = onderdelen.filter((oefening) => sessie.statussen[oefening] === "Voltooid").length;
+  const allesVoltooid = aantalVoltooid === onderdelen.length;
 
-audio.play().catch((err) => {
-  console.log("Geluid geblokkeerd", err);
-});
+  if (!geselecteerd) return (
+    <AppScreen className="active-workout">
+      <SecondaryButton className="back-button button--compact" icon="←" onClick={stopTraining}>Stop training</SecondaryButton>
+      <AppHeader eyebrow="Actieve training" title={sessie.training} subtitle={`${aantalVoltooid} van ${onderdelen.length} oefeningen voltooid`} />
+      <div className="workout-progress" role="progressbar" aria-label="Voltooide oefeningen" aria-valuemin="0" aria-valuemax={onderdelen.length} aria-valuenow={aantalVoltooid}><span style={{ width: `${(aantalVoltooid / onderdelen.length) * 100}%` }} /></div>
+      <div className="exercise-overview">{onderdelen.map((oefening) => {
+        const status = sessie.statussen[oefening] || "Nog niet gestart";
+        const eersteSet = sessie.gegevens[oefening]?.[1] || haalVorigeSetOp(oefening, 1);
+        return <button type="button" key={oefening} className={`exercise-overview-card${status === "Voltooid" ? " is-complete" : ""}`} onClick={() => openOefening(oefening)}><span className="exercise-overview-card__copy"><strong>{oefening}</strong><small>{oefening === "Cardio" ? (sessie.cardio.type ? `${sessie.cardio.type}${sessie.cardio.tijd ? ` · ${sessie.cardio.tijd} min` : ""}` : "Cardioresultaat invoeren") : eersteSet ? `Set 1: ${eersteSet.gewicht || 0} kg × ${eersteSet.reps || 0}` : "Nog geen eerdere waarden"}</small></span><StatusBadge tone={status === "Bezig" ? "warning" : status === "Voltooid" ? "success" : "neutral"}>{status === "Voltooid" ? "✓ Voltooid" : status}</StatusBadge><span className="exercise-overview-card__arrow" aria-hidden="true">›</span></button>;
+      })}</div>
+      <PrimaryButton className="button--full button--large" icon="✓" disabled={!allesVoltooid} onClick={trainingOpslaan}>Training afronden</PrimaryButton>
+      {!allesVoltooid && <p className="finish-hint">Rond eerst alle oefeningen af. Je kunt ze in elke gewenste volgorde openen.</p>}
+    </AppScreen>
+  );
 
-      audio.play().catch(() => {});
-      setMelding(true);
-
-setTimeout(() => {
-  setMelding(false);
-}, 5000);
-    }
-
-    return;
-  }
-
-  const interval = setInterval(() => {
-    setTimer((vorige) => vorige - 1);
-  }, 1000);
-
-  return () => clearInterval(interval);
-}, [timer]);
-
-  if (!training) {
-    return (
-      <div>
-        <h1 style={theme.title}>
-  🏋️ Trainingen
-</h1>
-
-        {Object.keys(trainingen).map((naam) => (
-          <div key={naam}>
-            <button
-              onClick={() => setTraining(naam)}
-              style={{...theme.button,
-              width: "100%",
-              minHeight: "140px",
-
-              fontSize: "34px",
-              fontWeight: "bold",
-
-              marginBottom: "20px",
-
-              borderRadius: "24px",
-
-              boxShadow: "0 4px 10px rgba(0,0,0,0.25)",
-}}
-            >
-              {naam}
-            </button>
-          </div>
-        ))}
-      </div>
-    );
-  }
-
+  const isCardio = geselecteerd === "Cardio";
   return (
-    <div>
-      <button
-  onClick={() => setTraining(null)}
-  style={{
-    ...theme.smallButton,
-    marginBottom: "20px",
-  }}
->
-        ← Terug
-      </button>
-
-     <h1 style={theme.title}>
-  {training}
-</h1>
-
-      {melding && (
-  <div style={theme.successCard}>
-    ✅ Rusttijd voorbij!
-  </div>
-)}
-
-      {trainingen[training].map((oefening) => (
-        <div
-          key={oefening}
-          style={theme.exerciseCard}
-        >
-          <h3
-  style={{
-    color: theme.colors.text,
-    marginTop: 0,
-  }}
->
-  {oefening}
-</h3>
-
-          <div
-            style={{
-              fontSize: "14px",
-              marginBottom: "10px",
-              fontWeight: "bold",
-              color: "#d97706",
-            }}
-          >
-            🏆 Record: {haalRecordOp(oefening)} kg
-          </div>
-
-          <div
-  style={{
-    marginBottom: "15px",
-  }}
->
-  <button
-    onClick={() =>
-      gebruikVorigeTraining(oefening)
-    }
-    style={{
-      marginBottom: "10px",
-      padding: "8px",
-      fontSize: "12px",
-      marginRight: "10px",
-    }}
-  >
-    📋 Gebruik vorige training
-  </button>
-
-  <br />
-
-  <button
-    onClick={() => setTimer(30)}
-    style={{
-      padding: "8px",
-      marginRight: "5px",
-    }}
-  >
-    30s
-  </button>
-
-  <button
-    onClick={() => setTimer(60)}
-    style={{
-      padding: "8px",
-      marginRight: "5px",
-    }}
-  >
-    60s
-  </button>
-
-  <button
-    onClick={() => setTimer(90)}
-    style={{
-      padding: "8px",
-      marginRight: "10px",
-    }}
-  >
-    90s
-  </button>
-
-  {timer > 0 ? (
-    <span
-      style={{
-        fontSize: "20px",
-        fontWeight: "bold",
-        color: "#2563eb",
-        marginLeft: "10px",
-      }}
-    >
-      ⏱️ {timer}s
-    </span>
-  ) : (
-    <span
-      style={{
-        color: "green",
-        fontWeight: "bold",
-        marginLeft: "10px",
-      }}
-    >
-      ✅ Klaar
-    </span>
-  )}
-</div>
-
-          {[1, 2, 3].map((setNummer) => {
-            const vorigeSet =
-              haalVorigeSetOp(
-                oefening,
-                setNummer
-              );
-
-            return (
-              <div key={setNummer}>
-                {vorigeSet && (
-                  <div
-                    style={{
-                      fontSize: "12px",
-                      color: "#666",
-                      marginBottom: "5px",
-                    }}
-                  >
-                    Vorige set {setNummer}:{" "}
-                    {vorigeSet.gewicht} kg ×{" "}
-                    {vorigeSet.reps}
-                  </div>
-                )}
-
-                <div
-                  style={theme.setCard}
-                >
-                  <div
-                    style={{
-                      fontWeight: "bold",
-                      marginBottom: "8px",
-                    }}
-                  >
-                    Set {setNummer}
-                  </div>
-
-                  <div
-                    style={{
-                      marginBottom: "8px",
-                    }}
-                  >
-                    <label>Kg</label>
-                    <br />
-
-                    <input
-                      type="number"
-                      placeholder="Kg"
-                      value={
-                        gegevens[oefening]?.[
-                          setNummer
-                        ]?.gewicht || ""
-                      }
-                      onChange={(e) =>
-                        wijzigSet(
-                          oefening,
-                          setNummer,
-                          "gewicht",
-                          e.target.value
-                        )
-                      }
-                      style={{
-  ...theme.input,
-  width: "100%",
-  boxSizing: "border-box",
-}}
-                    />
-                  </div>
-
-                  <div>
-                    <label>Reps</label>
-                    <br />
-
-                    <input
-                      type="number"
-                      placeholder="Reps"
-                      value={
-                        gegevens[oefening]?.[
-                          setNummer
-                        ]?.reps || ""
-                      }
-                      onChange={(e) =>
-                        wijzigSet(
-                          oefening,
-                          setNummer,
-                          "reps",
-                          e.target.value
-                        )
-                      }
-                      style={{
-                        width: "100%",
-                        padding: "10px",
-                        fontSize: "16px",
-                        boxSizing:
-                          "border-box",
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      ))}
-<CardioForm
-  onCardioChange={(data) =>
-    setCardio(data)
-  }
-/>
-      <button
-        onClick={() => {
-        const trainingData = {
-  datum: new Date().toISOString(),
-  training: training,
-  oefeningen: gegevens,
-  cardio: cardio,
-};
-
-          const bestaandeTrainingen =
-            JSON.parse(
-              localStorage.getItem(
-                "trainingHistorie"
-              )
-            ) || [];
-
-          bestaandeTrainingen.push(
-            trainingData
-          );
-
-          localStorage.setItem(
-            "trainingHistorie",
-            JSON.stringify(
-              bestaandeTrainingen
-            )
-          );
-
-          alert("Training opgeslagen!");
-        }}
-        style={{
-  ...theme.button,
-  width: "100%",
-  marginTop: "20px",
-}}
-      >
-        Training Opslaan
-      </button>
-    </div>
+    <AppScreen className="active-workout">
+      <SecondaryButton className="back-button button--compact" icon="←" onClick={() => setGeselecteerd(null)}>Terug naar overzicht</SecondaryButton>
+      <AppHeader eyebrow="Oefening" title={geselecteerd} subtitle={sessie.training} />
+      {melding && <Card className="status-message" role="status">Rusttijd voorbij — je kunt weer verder.</Card>}
+      {isCardio ? <CardioForm value={sessie.cardio} onCardioChange={(cardio) => setSessie((vorige) => ({ ...vorige, cardio }))} /> : (
+        <Card className="exercise-card">
+          <div className="exercise-header"><div><h2>{geselecteerd}</h2><div style={{ marginTop: 8 }}><StatusBadge tone="warning">Record: {haalRecordOp(geselecteerd)} kg</StatusBadge></div></div><SecondaryButton className="button--compact" icon="↶" onClick={() => gebruikVorigeTraining(geselecteerd)}>Vorige waarden</SecondaryButton></div>
+          <div className="timer-row"><span className="field-label">Rusttimer</span><StatusBadge tone={sessie.timer > 0 ? "warning" : "success"}>{sessie.timer > 0 ? `${sessie.timer}s resterend` : "Klaar"}</StatusBadge></div>
+          <div className="sets">{SETS.map((setNummer) => {
+            const vorigeSet = haalVorigeSetOp(geselecteerd, setNummer);
+            const sleutel = `${geselecteerd}-${setNummer}`;
+            const voltooid = sessie.voltooideSets.includes(sleutel);
+            return <div key={setNummer}>{vorigeSet && <p className="previous-set">Vorige keer: {vorigeSet.gewicht || 0} kg × {vorigeSet.reps || 0}</p>}<div className={`set-card${voltooid ? " is-complete" : ""}`}><div className="set-card__header"><strong>Set {setNummer}</strong>{voltooid && <StatusBadge>Voltooid</StatusBadge>}</div><div className="set-fields"><div className="field"><label htmlFor={`${geselecteerd}-${setNummer}-kg`}>Gewicht (kg)</label><div className="stepper"><button type="button" aria-label={`Verlaag gewicht van set ${setNummer}`} onClick={() => stapWaarde(geselecteerd, setNummer, "gewicht", -1)}>−</button><input id={`${geselecteerd}-${setNummer}-kg`} type="number" inputMode="decimal" value={sessie.gegevens[geselecteerd]?.[setNummer]?.gewicht || ""} onChange={(e) => wijzigSet(geselecteerd, setNummer, "gewicht", e.target.value)} placeholder="0" /><button type="button" aria-label={`Verhoog gewicht van set ${setNummer}`} onClick={() => stapWaarde(geselecteerd, setNummer, "gewicht", 1)}>+</button></div></div><div className="field"><label htmlFor={`${geselecteerd}-${setNummer}-reps`}>Herhalingen</label><div className="stepper"><button type="button" aria-label={`Verlaag herhalingen van set ${setNummer}`} onClick={() => stapWaarde(geselecteerd, setNummer, "reps", -1)}>−</button><input id={`${geselecteerd}-${setNummer}-reps`} type="number" inputMode="numeric" value={sessie.gegevens[geselecteerd]?.[setNummer]?.reps || ""} onChange={(e) => wijzigSet(geselecteerd, setNummer, "reps", e.target.value)} placeholder="0" /><button type="button" aria-label={`Verhoog herhalingen van set ${setNummer}`} onClick={() => stapWaarde(geselecteerd, setNummer, "reps", 1)}>+</button></div></div></div><SecondaryButton className="button--full complete-set-button" disabled={voltooid} onClick={() => voltooiSet(geselecteerd, setNummer)}>{voltooid ? "Set voltooid" : "Voltooi set en start rust"}</SecondaryButton></div></div>;
+          })}</div>
+        </Card>
+      )}
+      <PrimaryButton className="button--full button--large" icon="✓" onClick={slaOefeningOp}>Oefening opslaan</PrimaryButton>
+    </AppScreen>
   );
 }
-
 export default Trainingen;
