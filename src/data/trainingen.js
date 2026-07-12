@@ -1,32 +1,24 @@
+export const TRAINING_A = "Training A – Bovenlichaam & buik";
+export const TRAINING_B = "Training B – Benen, rug & core";
+
 export const trainingen = {
-  "Training A - Borst & Rug": [
-    "Chest Press Machine",
-    "Seated Row Machine",
-    "Incline Chest Press",
-    "Lat Pulldown",
-    "Dumbbell Curl",
-    "Hammer Curl",
-    "Leg Press",
-    "Plank",
-  ],
-
-  "Training B - Houding & Armen": [
-    "Pec Deck",
-    "Reverse Fly Machine",
-    "Face Pull",
-    "Seated Row",
-    "Leg Curl",
-    "Cable Curl",
-    "Preacher Curl Machine",
-    "Dead Bug",
-  ],
-
-  "Training C - Circuit": [
+  [TRAINING_A]: [
+    "Cardio",
     "Chest Press",
-    "Seated Row",
-    "Lat Pulldown",
+    "Lat Pull",
+    "Shoulder Press",
+    "Triceps Extension",
+    "Abdominal Crunch",
+  ],
+  [TRAINING_B]: [
+    "Cardio",
     "Leg Press",
-    "Cable Curl",
-    "Plank",
+    "Calf Press",
+    "Back Extension",
+    "Rotary Torso",
+    "Abdominal",
   ],
 };
+
+export const volgendeTraining = (laatsteTraining) =>
+  laatsteTraining === TRAINING_A ? TRAINING_B : TRAINING_A;

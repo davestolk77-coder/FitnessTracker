@@ -1,126 +1,23 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { AppHeader, AppScreen, Card, EmptyState } from "../components/ui";
 import { theme } from "../styles/theme";
-
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
+import { leesJson } from "../utils/storage";
 
 function Voortgang() {
-  const [metingen, setMetingen] = useState([]);
-
-  useEffect(() => {
-    const historie =
-      JSON.parse(
-        localStorage.getItem("gewichtHistorie")
-      ) || [];
-
-    const grafiekData = historie.map(
-      (meting) => ({
-        datum: new Date(
-          meting.datum
-        ).toLocaleDateString("nl-NL"),
-        gewicht: meting.gewicht,
-      })
-    );
-
-    setMetingen(grafiekData);
-  }, []);
-
+  const [metingen] = useState(() => {
+    const opgeslagen = leesJson("gewichtHistorie", []);
+    const historie = Array.isArray(opgeslagen) ? opgeslagen : [];
+    return historie.map((meting) => ({ datum: new Date(meting.datum).toLocaleDateString("nl-NL"), gewicht: meting.gewicht }));
+  });
   return (
-    <div>
-      <h1 style={theme.title}>
-        📈 Voortgang
-      </h1>
-
-      {metingen.length === 0 ? (
-        <div style={theme.card}>
-          <p
-            style={{
-              color: theme.colors.text,
-              margin: 0,
-            }}
-          >
-            Nog geen metingen gevonden.
-          </p>
-        </div>
-      ) : (
-        <>
-          <div style={theme.card}>
-            <div
-              style={{
-                width: "100%",
-                height: 350,
-              }}
-            >
-              <ResponsiveContainer>
-                <LineChart data={metingen}>
-                  <CartesianGrid
-                    stroke="#4b5563"
-                    strokeDasharray="3 3"
-                  />
-
-                  <XAxis
-                    dataKey="datum"
-                    stroke="#d1d5db"
-                  />
-
-                  <YAxis
-                    stroke="#d1d5db"
-                  />
-
-                  <Tooltip />
-
-                  <Line
-                    type="monotone"
-                    dataKey="gewicht"
-                    stroke="#22c55e"
-                    strokeWidth={3}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          <div style={theme.card}>
-            <h2
-              style={{
-                color:
-                  theme.colors.primary,
-                textAlign: "center",
-                margin: 0,
-              }}
-            >
-              ⚖️ Laatste gewicht
-            </h2>
-
-            <div
-              style={{
-                color:
-                  theme.colors.text,
-                fontSize: "36px",
-                fontWeight: "bold",
-                textAlign: "center",
-                marginTop: "15px",
-              }}
-            >
-              {
-                metingen[
-                  metingen.length - 1
-                ].gewicht
-              }{" "}
-              kg
-            </div>
-          </div>
-        </>
-      )}
-    </div>
+    <AppScreen>
+      <AppHeader eyebrow="Ontwikkeling" title="Gewichtsvoortgang" subtitle="Volg de ontwikkeling van je lichaamsgewicht." />
+      {metingen.length === 0 ? <EmptyState icon="↗" title="Nog geen metingen" description="Sla op het overzicht je gewicht op om hier je voortgang te zien." /> : <>
+        <Card className="chart-card"><div className="chart-wrap"><ResponsiveContainer><LineChart data={metingen} margin={{ top: 8, right: 14, left: -18, bottom: 8 }}><CartesianGrid stroke={theme.colors.surfaceRaised} strokeDasharray="3 3" vertical={false} /><XAxis dataKey="datum" stroke={theme.colors.textMuted} tick={{ fontSize: 11 }} /><YAxis stroke={theme.colors.textMuted} tick={{ fontSize: 11 }} /><Tooltip contentStyle={{ background: theme.colors.card, border: `1px solid ${theme.colors.border}`, borderRadius: 12 }} /><Line type="monotone" dataKey="gewicht" stroke={theme.colors.primary} strokeWidth={3} dot={{ fill: theme.colors.primary, r: 3 }} /></LineChart></ResponsiveContainer></div></Card>
+        <Card className="metric-card"><span className="metric-label">Laatste gewicht</span><strong className="metric-value metric-value--accent">{metingen[metingen.length - 1].gewicht} kg</strong></Card>
+      </>}
+    </AppScreen>
   );
 }
-
 export default Voortgang;

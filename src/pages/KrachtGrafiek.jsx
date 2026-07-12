@@ -1,166 +1,36 @@
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
+import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { AppHeader, AppScreen, Card, EmptyState } from "../components/ui";
 import { theme } from "../styles/theme";
-
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
+import { leesJson } from "../utils/storage";
 
 function KrachtGrafiek() {
-  const [data, setData] = useState([]);
-  const [oefeningen, setOefeningen] = useState([]);
-  const [gekozenOefening, setGekozenOefening] =
-    useState("");
-
-  useEffect(() => {
-    const historie =
-      JSON.parse(
-        localStorage.getItem("trainingHistorie")
-      ) || [];
-
+  const [historie] = useState(() => { const value = leesJson("trainingHistorie", []); return Array.isArray(value) ? value : []; });
+  const [oefeningen] = useState(() => {
+    const value = leesJson("trainingHistorie", []);
+    const opgeslagenHistorie = Array.isArray(value) ? value : [];
     const uniekeOefeningen = new Set();
-
-    historie.forEach((training) => {
-      Object.keys(
-        training.oefeningen || {}
-      ).forEach((oefening) => {
-        uniekeOefeningen.add(oefening);
-      });
-    });
-
-    const lijst =
-      Array.from(uniekeOefeningen);
-
-    setOefeningen(lijst);
-
-    if (lijst.length > 0) {
-      setGekozenOefening(lijst[0]);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!gekozenOefening) return;
-
-    const historie =
-      JSON.parse(
-        localStorage.getItem("trainingHistorie")
-      ) || [];
-
+    opgeslagenHistorie.forEach((training) => Object.keys(training.oefeningen || {}).forEach((oefening) => uniekeOefeningen.add(oefening)));
+    return Array.from(uniekeOefeningen);
+  });
+  const [gekozenOefening, setGekozenOefening] = useState(() => oefeningen[0] || "");
+  const data = useMemo(() => {
+    if (!gekozenOefening) return [];
     const grafiekData = [];
-
     historie.forEach((training, index) => {
-      const oefening =
-        training.oefeningen?.[
-          gekozenOefening
-        ];
-
-      if (oefening) {
-        let hoogsteGewicht = 0;
-
-        Object.values(oefening).forEach(
-          (setData) => {
-            const gewicht = Number(
-              setData.gewicht || 0
-            );
-
-            if (gewicht > hoogsteGewicht) {
-              hoogsteGewicht = gewicht;
-            }
-          }
-        );
-
-        grafiekData.push({
-          training: index + 1,
-          gewicht: hoogsteGewicht,
-        });
-      }
+      const oefening = training.oefeningen?.[gekozenOefening];
+      if (oefening) { let hoogsteGewicht = 0; Object.values(oefening).forEach((setData) => { const gewicht = Number(setData.gewicht || 0); if (gewicht > hoogsteGewicht) hoogsteGewicht = gewicht; }); grafiekData.push({ training: index + 1, gewicht: hoogsteGewicht }); }
     });
-
-    setData(grafiekData);
-  }, [gekozenOefening]);
-
+    return grafiekData;
+  }, [gekozenOefening, historie]);
   return (
-    <div>
-      <h1 style={theme.title}>
-        💪 Krachtontwikkeling
-      </h1>
-
-      <div style={theme.card}>
-        <select
-          value={gekozenOefening}
-          onChange={(e) =>
-            setGekozenOefening(
-              e.target.value
-            )
-          }
-          style={{
-            ...theme.input,
-            width: "100%",
-            marginBottom: "20px",
-          }}
-        >
-          {oefeningen.map((oefening) => (
-            <option
-              key={oefening}
-              value={oefening}
-            >
-              {oefening}
-            </option>
-          ))}
-        </select>
-
-        {data.length === 0 ? (
-          <p
-            style={{
-              color:
-                theme.colors.text,
-            }}
-          >
-            Geen gegevens gevonden.
-          </p>
-        ) : (
-          <div
-            style={{
-              width: "100%",
-              height: 350,
-            }}
-          >
-            <ResponsiveContainer>
-              <LineChart data={data}>
-                <CartesianGrid
-                  stroke="#4b5563"
-                  strokeDasharray="3 3"
-                />
-
-                <XAxis
-                  dataKey="training"
-                  stroke="#d1d5db"
-                />
-
-                <YAxis
-                  stroke="#d1d5db"
-                />
-
-                <Tooltip />
-
-                <Line
-                  type="monotone"
-                  dataKey="gewicht"
-                  stroke="#22c55e"
-                  strokeWidth={3}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-      </div>
-    </div>
+    <AppScreen>
+      <AppHeader eyebrow="Ontwikkeling" title="Krachtontwikkeling" subtitle="Bekijk je hoogste gewicht per training." />
+      {oefeningen.length === 0 ? <EmptyState icon="⌁" title="Nog geen krachtgegevens" description="Sla eerst een training met gewichten op." /> : <Card className="chart-card">
+        <div className="section-heading" style={{ marginBottom: 10 }}><div className="field"><label htmlFor="exercise-select">Oefening</label><select id="exercise-select" value={gekozenOefening} onChange={(e) => setGekozenOefening(e.target.value)}>{oefeningen.map((oefening) => <option key={oefening}>{oefening}</option>)}</select></div></div>
+        {data.length === 0 ? <EmptyState title="Geen gegevens gevonden" /> : <div className="chart-wrap"><ResponsiveContainer><LineChart data={data} margin={{ top: 8, right: 14, left: -18, bottom: 8 }}><CartesianGrid stroke={theme.colors.surfaceRaised} strokeDasharray="3 3" vertical={false} /><XAxis dataKey="training" stroke={theme.colors.textMuted} tick={{ fontSize: 11 }} /><YAxis stroke={theme.colors.textMuted} tick={{ fontSize: 11 }} /><Tooltip contentStyle={{ background: theme.colors.card, border: `1px solid ${theme.colors.border}`, borderRadius: 12 }} /><Line type="monotone" dataKey="gewicht" stroke={theme.colors.primary} strokeWidth={3} dot={{ fill: theme.colors.primary, r: 3 }} /></LineChart></ResponsiveContainer></div>}
+      </Card>}
+    </AppScreen>
   );
 }
-
 export default KrachtGrafiek;

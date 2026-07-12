@@ -1,95 +1,26 @@
-import { useEffect, useState } from "react";
-import { theme } from "../styles/theme";
+import { useState } from "react";
+import { AppHeader, AppScreen, Card, EmptyState, StatusBadge } from "../components/ui";
+import { leesJson } from "../utils/storage";
 
 function Records() {
-  const [records, setRecords] = useState({});
-
-  useEffect(() => {
-    const historie =
-      JSON.parse(
-        localStorage.getItem("trainingHistorie")
-      ) || [];
-
+  const [records] = useState(() => {
+    const opgeslagen = leesJson("trainingHistorie", []);
+    const historie = Array.isArray(opgeslagen) ? opgeslagen : [];
     const nieuweRecords = {};
-
-    historie.forEach((training) => {
-      Object.entries(
-        training.oefeningen || {}
-      ).forEach(([oefening, sets]) => {
-        Object.values(sets || {}).forEach(
-          (setData) => {
-            const gewicht = Number(
-              setData.gewicht || 0
-            );
-
-            if (
-              !nieuweRecords[oefening] ||
-              gewicht > nieuweRecords[oefening]
-            ) {
-              nieuweRecords[oefening] = gewicht;
-            }
-          }
-        );
-      });
-    });
-
-    setRecords(nieuweRecords);
-  }, []);
-
+    historie.forEach((training) => Object.entries(training.oefeningen || {}).forEach(([oefening, sets]) => Object.values(sets || {}).forEach((setData) => {
+      const gewicht = Number(setData.gewicht || 0);
+      if (!nieuweRecords[oefening] || gewicht > nieuweRecords[oefening]) nieuweRecords[oefening] = gewicht;
+    })));
+    return nieuweRecords;
+  });
+  const lijst = Object.entries(records).sort((a, b) => a[0].localeCompare(b[0]));
   return (
-    <div>
-      <h1 style={theme.title}>
-        🏆 Persoonlijke Records
-      </h1>
-
-      {Object.keys(records).length === 0 ? (
-        <div style={theme.card}>
-          <p
-            style={{
-              color: theme.colors.text,
-              margin: 0,
-            }}
-          >
-            Nog geen records gevonden.
-          </p>
-        </div>
-      ) : (
-        Object.entries(records)
-          .sort((a, b) =>
-            a[0].localeCompare(b[0])
-          )
-          .map(([oefening, gewicht]) => (
-            <div
-              key={oefening}
-              style={theme.card}
-            >
-              <div
-                style={{
-                  color:
-                    theme.colors.text,
-                  fontSize: "18px",
-                  fontWeight: "bold",
-                  marginBottom: "10px",
-                }}
-              >
-                {oefening}
-              </div>
-
-              <div
-                style={{
-                  color:
-                    theme.colors.primary,
-                  fontSize: "22px",
-                  fontWeight: "bold",
-                }}
-              >
-                🏆 {gewicht} kg
-              </div>
-            </div>
-          ))
+    <AppScreen>
+      <AppHeader eyebrow="Prestaties" title="Persoonlijke records" subtitle="Je hoogste gewicht per oefening." />
+      {lijst.length === 0 ? <EmptyState icon="★" title="Nog geen records" description="Records worden berekend zodra je een training opslaat." /> : (
+        <div className="record-list">{lijst.map(([oefening, gewicht]) => <Card key={oefening} className="record-card"><div><StatusBadge>Persoonlijk record</StatusBadge><h2 style={{ marginTop: 10 }}>{oefening}</h2></div><strong className="record-value">{gewicht} kg</strong></Card>)}</div>
       )}
-    </div>
+    </AppScreen>
   );
 }
-
 export default Records;
