@@ -3,6 +3,7 @@ import { AppHeader, AppScreen, Card, PrimaryButton, SectionCard, StatusBadge } f
 import { volgendeTraining } from "../data/trainingen";
 import { leesJson } from "../utils/storage";
 import { leesTrainingHistorie } from "../utils/trainingHistorie";
+import { useToast } from "../utils/toastContext";
 
 const DOELGEWICHT = 80;
 
@@ -27,6 +28,7 @@ function leesLaatsteGewicht() {
 }
 
 function Dashboard({ onStartTraining }) {
+  const { showToast } = useToast();
   const [gewicht, setGewicht] = useState(() => localStorage.getItem("huidigGewicht") || "");
   const [laatsteGewicht, setLaatsteGewicht] = useState(leesLaatsteGewicht);
   const [historie] = useState(leesTrainingHistorie);
@@ -53,7 +55,7 @@ function Dashboard({ onStartTraining }) {
     gewichtHistorie.push({ datum: new Date().toISOString(), gewicht: waarde });
     localStorage.setItem("gewichtHistorie", JSON.stringify(gewichtHistorie));
     setLaatsteGewicht(waarde);
-    alert("Gewicht opgeslagen!");
+    showToast("Gewicht opgeslagen", "success");
   };
 
   return (

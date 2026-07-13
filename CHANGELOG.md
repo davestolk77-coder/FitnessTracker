@@ -6,6 +6,7 @@
 - De bewerkweergave toont uitgevoerde en ontbrekende oefeningen uit het bijbehorende trainingsschema.
 - Een gedeeltelijke training wordt automatisch volledig wanneer alle oefeningen later zijn toegevoegd.
 - Bestaande historie, opslagkeys, exportgegevens en roterende back-ups blijven behouden.
+- Niet-kritieke succes-, informatie- en foutmeldingen verschijnen als tijdelijke, niet-blokkerende toastmeldingen.
 
 ## 0.4.1 - 2026-07-13
 

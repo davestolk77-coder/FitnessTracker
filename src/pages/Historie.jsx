@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import CardioForm from "../components/CardioForm";
 import { AppHeader, AppScreen, Card, DangerButton, EmptyState, PrimaryButton, SecondaryButton, StatusBadge } from "../components/ui";
 import { getOntbrekendeOefeningen, getTrainingSchema, heeftCardio, importeerFitnessBackup, leesTrainingHistorie, maakFitnessBackupData, normaliseerHistorieItem, valideerFitnessBackup, verwijderOefeningUitTraining, verwijderTraining as verwijderTrainingUitHistorie, vindLaatsteOefeningWaarden, werkTrainingBij } from "../utils/trainingHistorie";
+import { useToast } from "../utils/toastContext";
 
 const kopieer = (waarde) => JSON.parse(JSON.stringify(waarde));
 const SETS = [1, 2, 3];
@@ -51,6 +52,7 @@ function Bevestigingsvenster({ titel, tekst, fout, bevestigTekst, danger = true,
 }
 
 function Historie() {
+  const { showToast } = useToast();
   const [historie, setHistorie] = useState(leesTrainingHistorie);
   const [geselecteerdeIndex, setGeselecteerdeIndex] = useState(null);
   const [bewerken, setBewerken] = useState(false);
@@ -59,7 +61,7 @@ function Historie() {
   const [importVoorstel, setImportVoorstel] = useState(null);
   const [toevoegenOefening, setToevoegenOefening] = useState(null);
   const [toevoegConcept, setToevoegConcept] = useState(null);
-  const [melding, setMelding] = useState("");
+  const [modalFout, setModalFout] = useState("");
   const bezigMetOpslaan = useRef(false);
   const importInput = useRef(null);
 
@@ -77,7 +79,7 @@ function Historie() {
     setConcept(null);
     setToevoegenOefening(null);
     setToevoegConcept(null);
-    setMelding("");
+    setModalFout("");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -89,20 +91,23 @@ function Historie() {
     setToevoegConcept(null);
     setBevestiging(null);
     setImportVoorstel(null);
-    setMelding("");
+    setModalFout("");
   };
 
-  const voerOpslagActieUit = (actie, succesmelding) => {
+  const voerOpslagActieUit = (actie, succesmelding, { kritiek = false } = {}) => {
     if (bezigMetOpslaan.current) return false;
     bezigMetOpslaan.current = true;
     try {
       const opgeslagenHistorie = actie();
       setHistorie(opgeslagenHistorie);
-      setMelding(succesmelding);
+      setModalFout("");
+      showToast(succesmelding, "success");
       return true;
     } catch (error) {
       console.error("Trainingshistorie opslaan mislukt", error);
-      setMelding("Opslaan is niet gelukt. Je bestaande trainingshistorie is niet bewust gewist; probeer het opnieuw.");
+      const foutmelding = "Opslaan is niet gelukt. Je bestaande trainingshistorie is behouden; probeer het opnieuw.";
+      if (kritiek) setModalFout(foutmelding);
+      else showToast(foutmelding, "error");
       return false;
     } finally {
       bezigMetOpslaan.current = false;
@@ -112,7 +117,7 @@ function Historie() {
   const startBewerken = () => {
     setConcept(kopieer(geselecteerdeTraining));
     setBewerken(true);
-    setMelding("");
+    setModalFout("");
   };
 
   const vorigeWaardenVoor = (oefening) => vindLaatsteOefeningWaarden(andereHistorie, oefening);
@@ -121,7 +126,7 @@ function Historie() {
   const startOefeningToevoegen = (oefening) => {
     setToevoegenOefening(oefening);
     setToevoegConcept(oefening === "Cardio" ? { type: "Loopband" } : Object.fromEntries(SETS.map((setNummer) => [setNummer, {}])));
-    setMelding("");
+    setModalFout("");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -153,7 +158,7 @@ function Historie() {
     if (toevoegenOefening === "Cardio") bijgewerkt.cardio = { ...toevoegConcept, type: toevoegConcept?.type || "Loopband" };
     else bijgewerkt.oefeningen = { ...bijgewerkt.oefeningen, [toevoegenOefening]: toevoegConcept };
     const genormaliseerd = normaliseerHistorieItem(bijgewerkt);
-    if (voerOpslagActieUit(() => werkTrainingBij(geselecteerdeTraining.trainingId, genormaliseerd), `${toevoegenOefening} is aan de training toegevoegd.`)) {
+    if (voerOpslagActieUit(() => werkTrainingBij(geselecteerdeTraining.trainingId, genormaliseerd), `${toevoegenOefening} toegevoegd`)) {
       setToevoegenOefening(null);
       setToevoegConcept(null);
     }
@@ -179,7 +184,7 @@ function Historie() {
 
   const slaWijzigingenOp = () => {
     const aangevuld = normaliseerHistorieItem(concept);
-    if (voerOpslagActieUit(() => werkTrainingBij(geselecteerdeTraining.trainingId, aangevuld), "Wijzigingen opgeslagen.")) {
+    if (voerOpslagActieUit(() => werkTrainingBij(geselecteerdeTraining.trainingId, aangevuld), "Wijzigingen opgeslagen")) {
       setConcept(null);
       setBewerken(false);
     }
@@ -187,21 +192,21 @@ function Historie() {
 
   const vraagOefeningVerwijderen = (oefening) => {
     if (geselecteerdeTraining.voltooidAantal <= 1) {
-      setMelding("De laatste oefening kan niet afzonderlijk worden verwijderd. Verwijder de volledige training als je deze niet wilt bewaren.");
+      showToast("De laatste oefening kan niet afzonderlijk worden verwijderd. Verwijder eventueel de volledige training.", "info", { duration: 3500 });
       return;
     }
-    setMelding("");
+    setModalFout("");
     setBevestiging({ type: "oefening", oefening });
   };
 
   const verwijderOefening = () => {
     const oefening = bevestiging.oefening;
     const bijgewerkt = verwijderOefeningUitTraining(geselecteerdeTraining, oefening);
-    if (voerOpslagActieUit(() => werkTrainingBij(geselecteerdeTraining.trainingId, bijgewerkt), `${oefening} is uit de training verwijderd.`)) setBevestiging(null);
+    if (voerOpslagActieUit(() => werkTrainingBij(geselecteerdeTraining.trainingId, bijgewerkt), `${oefening} verwijderd`, { kritiek: true })) setBevestiging(null);
   };
 
   const verwijderTraining = () => {
-    if (voerOpslagActieUit(() => verwijderTrainingUitHistorie(geselecteerdeTraining.trainingId), "Training verwijderd.")) terugNaarOverzicht();
+    if (voerOpslagActieUit(() => verwijderTrainingUitHistorie(geselecteerdeTraining.trainingId), "Training verwijderd", { kritiek: true })) terugNaarOverzicht();
   };
 
   const exporteerBackup = () => {
@@ -218,10 +223,10 @@ function Historie() {
       link.click();
       link.remove();
       setTimeout(() => URL.revokeObjectURL(url), 0);
-      setMelding(`Back-up voorbereid met ${data.trainingHistorie.length} training(en) en ${data.gewichtHistorie.length} gewichtsmeting(en).`);
+      showToast(`Back-up geëxporteerd (${data.trainingHistorie.length} trainingen)`, "success");
     } catch (error) {
       console.error("Back-up exporteren mislukt", error);
-      setMelding("Back-up exporteren is niet gelukt. Er zijn geen opgeslagen gegevens gewijzigd.");
+      showToast("Back-up exporteren is niet gelukt. Er zijn geen opgeslagen gegevens gewijzigd.", "error");
     }
   };
 
@@ -232,17 +237,17 @@ function Historie() {
     try {
       const voorstel = valideerFitnessBackup(await bestand.text());
       setImportVoorstel(voorstel);
-      setMelding("");
+      setModalFout("");
       setBevestiging({ type: "import" });
     } catch (error) {
       setImportVoorstel(null);
-      setMelding(error.message || "De back-up kon niet worden gelezen.");
+      showToast(error.message || "De back-up kon niet worden gelezen.", "error");
     }
   };
 
   const bevestigImport = () => {
     if (!importVoorstel) return;
-    if (voerOpslagActieUit(() => importeerFitnessBackup(importVoorstel.data), "Back-up samengevoegd met de bestaande gegevens.")) {
+    if (voerOpslagActieUit(() => importeerFitnessBackup(importVoorstel.data), "Back-up geïmporteerd", { kritiek: true })) {
       setImportVoorstel(null);
       setBevestiging(null);
     }
@@ -252,7 +257,6 @@ function Historie() {
     return (
       <AppScreen>
         <AppHeader eyebrow="Activiteit" title="Historie" subtitle="Open een training om resultaten te bekijken, aan te passen of te verwijderen." />
-        {melding && <Card className="status-message" role="status">{melding}</Card>}
         <Card className="backup-tools">
           <div><h2>Gegevens veiligstellen</h2><p>Exporteer een eigen kopie of voeg een eerdere FitnessTracker-back-up samen.</p></div>
           <div className="backup-tools__actions">
@@ -275,7 +279,7 @@ function Historie() {
             ))}
           </div>
         )}
-        {bevestiging?.type === "import" && importVoorstel && <Bevestigingsvenster titel="Back-up importeren?" tekst={`De back-up bevat ${importVoorstel.samenvatting.trainingen} training(en) en ${importVoorstel.samenvatting.gewichtsmetingen} gewichtsmeting(en). Deze worden samengevoegd; bestaande gegevens worden niet blind overschreven.`} fout={melding.startsWith("Opslaan is niet gelukt") ? melding : ""} bevestigTekst="Samenvoegen" danger={false} onAnnuleren={() => { setBevestiging(null); setImportVoorstel(null); }} onBevestigen={bevestigImport} />}
+        {bevestiging?.type === "import" && importVoorstel && <Bevestigingsvenster titel="Back-up importeren?" tekst={`De back-up bevat ${importVoorstel.samenvatting.trainingen} training(en) en ${importVoorstel.samenvatting.gewichtsmetingen} gewichtsmeting(en). Deze worden samengevoegd; bestaande gegevens worden niet blind overschreven.`} fout={modalFout} bevestigTekst="Samenvoegen" danger={false} onAnnuleren={() => { setBevestiging(null); setImportVoorstel(null); setModalFout(""); }} onBevestigen={bevestigImport} />}
       </AppScreen>
     );
   }
@@ -285,9 +289,8 @@ function Historie() {
     const heeftVorigeWaarden = toevoegenOefening === "Cardio" ? Boolean(vorigeCardio) : Boolean(vorigeKrachtwaarden);
     return (
       <AppScreen className="history-detail">
-        <SecondaryButton className="back-button button--compact" icon="←" onClick={() => { setToevoegenOefening(null); setToevoegConcept(null); setMelding(""); }}>Toevoegen annuleren</SecondaryButton>
+        <SecondaryButton className="back-button button--compact" icon="←" onClick={() => { setToevoegenOefening(null); setToevoegConcept(null); setModalFout(""); }}>Toevoegen annuleren</SecondaryButton>
         <AppHeader eyebrow="Oefening toevoegen" title={toevoegenOefening} subtitle={geselecteerdeTraining.training || "Opgeslagen training"} />
-        {melding && <Card className="history-message" role="alert">{melding}</Card>}
         {heeftVorigeWaarden && <SecondaryButton className="button--full" icon="↶" onClick={gebruikVorigeToevoegWaarden}>Vorige waarden gebruiken</SecondaryButton>}
         {toevoegenOefening === "Cardio" ? (
           <CardioForm value={toevoegConcept || {}} onCardioChange={setToevoegConcept} />
@@ -320,9 +323,8 @@ function Historie() {
   if (bewerken) {
     return (
       <AppScreen className="history-detail">
-        <SecondaryButton className="back-button button--compact" icon="←" onClick={() => { setBewerken(false); setConcept(null); setMelding(""); }}>Bewerken annuleren</SecondaryButton>
+        <SecondaryButton className="back-button button--compact" icon="←" onClick={() => { setBewerken(false); setConcept(null); setModalFout(""); }}>Bewerken annuleren</SecondaryButton>
         <AppHeader eyebrow="Training bewerken" title={concept.training || "Training"} subtitle="Pas opgeslagen waarden aan en sla ze opnieuw op." />
-        {melding && <Card className="history-message" role="alert">{melding}</Card>}
         <div className="history-section-heading"><h2>Uitgevoerde oefeningen</h2><StatusBadge>{normaliseerHistorieItem(concept).voltooidAantal} opgeslagen</StatusBadge></div>
         {heeftCardio(concept) && <CardioForm value={concept.cardio} onCardioChange={(cardio) => setConcept((vorige) => ({ ...vorige, cardio }))} />}
         {Object.entries(concept.oefeningen).map(([oefening, sets]) => (
@@ -360,7 +362,6 @@ function Historie() {
     <AppScreen className="history-detail">
       <SecondaryButton className="back-button button--compact" icon="←" onClick={terugNaarOverzicht}>Terug naar historie</SecondaryButton>
       <AppHeader eyebrow="Opgeslagen training" title={geselecteerdeTraining.training || "Training"} subtitle={formatDatum(geselecteerdeTraining.datum)} />
-      {melding && <Card className="history-message" role="status">{melding}</Card>}
       <div className="history-detail__meta">
         <Card className="history-meta-card"><span>Starttijd</span><strong>{formatStartTijd(geselecteerdeTraining.startTijd)}</strong></Card>
         <Card className="history-meta-card"><span>Duur</span><strong>{formatDuur(geselecteerdeTraining.duur)}</strong></Card>
@@ -391,10 +392,10 @@ function Historie() {
       </>}
       <div className="history-detail__actions">
         <PrimaryButton className="button--full" icon="✎" onClick={startBewerken}>Training bewerken</PrimaryButton>
-        <DangerButton className="button--full" icon="×" onClick={() => { setMelding(""); setBevestiging({ type: "training" }); }}>Training verwijderen</DangerButton>
+        <DangerButton className="button--full" icon="×" onClick={() => { setModalFout(""); setBevestiging({ type: "training" }); }}>Training verwijderen</DangerButton>
       </div>
-      {bevestiging?.type === "oefening" && <Bevestigingsvenster titel="Oefening verwijderen?" tekst={`${bevestiging.oefening} wordt uit deze opgeslagen training verwijderd. Dit kan invloed hebben op je records en vorige waarden.`} fout={melding.startsWith("Opslaan is niet gelukt") ? melding : ""} bevestigTekst="Verwijderen" onAnnuleren={() => setBevestiging(null)} onBevestigen={verwijderOefening} />}
-      {bevestiging?.type === "training" && <Bevestigingsvenster titel="Training verwijderen?" tekst="Deze training en alle opgeslagen oefeningen worden permanent verwijderd uit je historie." fout={melding.startsWith("Opslaan is niet gelukt") ? melding : ""} bevestigTekst="Definitief verwijderen" onAnnuleren={() => setBevestiging(null)} onBevestigen={verwijderTraining} />}
+      {bevestiging?.type === "oefening" && <Bevestigingsvenster titel="Oefening verwijderen?" tekst={`${bevestiging.oefening} wordt uit deze opgeslagen training verwijderd. Dit kan invloed hebben op je records en vorige waarden.`} fout={modalFout} bevestigTekst="Verwijderen" onAnnuleren={() => { setBevestiging(null); setModalFout(""); }} onBevestigen={verwijderOefening} />}
+      {bevestiging?.type === "training" && <Bevestigingsvenster titel="Training verwijderen?" tekst="Deze training en alle opgeslagen oefeningen worden permanent verwijderd uit je historie." fout={modalFout} bevestigTekst="Definitief verwijderen" onAnnuleren={() => { setBevestiging(null); setModalFout(""); }} onBevestigen={verwijderTraining} />}
     </AppScreen>
   );
 }

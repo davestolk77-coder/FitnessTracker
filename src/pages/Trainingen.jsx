@@ -4,6 +4,7 @@ import CardioForm from "../components/CardioForm";
 import { AppHeader, AppScreen, Card, PrimaryButton, SecondaryButton, StatusBadge } from "../components/ui";
 import { leesJson } from "../utils/storage";
 import { leesTrainingHistorie, maakNieuweTrainingId, voegTrainingToe, vindLaatsteOefeningWaarden } from "../utils/trainingHistorie";
+import { useToast } from "../utils/toastContext";
 
 const SETS = [1, 2, 3];
 const ACTIEVE_TRAINING_KEY = "actieveTraining";
@@ -28,9 +29,9 @@ function herstelSessie(initialTraining) {
 }
 
 function Trainingen({ initialTraining, onTrainingClosed }) {
+  const { showToast } = useToast();
   const [sessie, setSessie] = useState(() => herstelSessie(initialTraining));
   const [geselecteerd, setGeselecteerd] = useState(null);
-  const [melding, setMelding] = useState(false);
   const [bevestigOnvolledig, setBevestigOnvolledig] = useState(false);
   const bezigMetAfronden = useRef(false);
 
@@ -47,13 +48,12 @@ function Trainingen({ initialTraining, onTrainingClosed }) {
         const audio = new Audio("/ping.mp3");
         audio.volume = 1;
         audio.play().catch(() => {});
-        setMelding(true);
-        setTimeout(() => setMelding(false), 5000);
+        showToast("Rusttijd voorbij — je kunt weer verder", "info", { duration: 3500 });
       }
       return { ...vorige, timer: vorige.timer - 1 };
     }), 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [showToast]);
 
   const kiesTraining = (training) => {
     const volgende = nieuweSessie(training);
@@ -91,7 +91,7 @@ function Trainingen({ initialTraining, onTrainingClosed }) {
       setSessie((vorige) => ({ ...vorige, gegevens: { ...vorige.gegevens, [oefening]: vorigeWaarden } }));
       return;
     }
-    alert("Geen eerdere training gevonden.");
+    showToast("Geen eerdere training gevonden", "info");
   };
 
   const haalRecordOp = (oefening) => historie().reduce((record, item) => Math.max(record, ...Object.values(item?.oefeningen?.[oefening] || {}).map((setData) => Number(setData?.gewicht || 0))), 0);
@@ -111,6 +111,7 @@ function Trainingen({ initialTraining, onTrainingClosed }) {
       statussen: { ...vorige.statussen, [geselecteerd]: "Voltooid" },
     }));
     setGeselecteerd(null);
+    showToast("Oefening opgeslagen", "success");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -151,11 +152,11 @@ function Trainingen({ initialTraining, onTrainingClosed }) {
     } catch (error) {
       console.error("Training opslaan mislukt", error);
       bezigMetAfronden.current = false;
-      alert("Training opslaan is niet gelukt. Je actieve training is behouden; probeer het opnieuw.");
+      showToast("Training opslaan is niet gelukt. Je actieve training is behouden; probeer het opnieuw.", "error");
       return;
     }
     localStorage.removeItem(ACTIEVE_TRAINING_KEY);
-    alert("Training opgeslagen!");
+    showToast("Training opgeslagen", "success");
     setSessie(null);
     onTrainingClosed();
   };
@@ -210,7 +211,6 @@ function Trainingen({ initialTraining, onTrainingClosed }) {
     <AppScreen className="active-workout">
       <SecondaryButton className="back-button button--compact" icon="←" onClick={() => setGeselecteerd(null)}>Terug naar overzicht</SecondaryButton>
       <AppHeader eyebrow="Oefening" title={geselecteerd} subtitle={sessie.training} />
-      {melding && <Card className="status-message" role="status">Rusttijd voorbij — je kunt weer verder.</Card>}
       {isCardio ? <CardioForm value={sessie.cardio} onCardioChange={(cardio) => setSessie((vorige) => ({ ...vorige, cardio }))} /> : (
         <Card className="exercise-card">
           <div className="exercise-header"><div><h2>{geselecteerd}</h2><div style={{ marginTop: 8 }}><StatusBadge tone="warning">Record: {haalRecordOp(geselecteerd)} kg</StatusBadge></div></div><SecondaryButton className="button--compact" icon="↶" onClick={() => gebruikVorigeTraining(geselecteerd)}>Vorige waarden</SecondaryButton></div>
