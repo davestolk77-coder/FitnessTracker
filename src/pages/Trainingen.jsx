@@ -1,16 +1,16 @@
 import { useEffect, useRef, useState } from "react";
-import { trainingen } from "../data/trainingen";
+import { TRAINING_SCHEMA_IDS, trainingen } from "../data/trainingen";
 import CardioForm from "../components/CardioForm";
 import { AppHeader, AppScreen, Card, PrimaryButton, SecondaryButton, StatusBadge } from "../components/ui";
 import { leesJson } from "../utils/storage";
-import { leesTrainingHistorie, slaTrainingHistorieOp, vindLaatsteOefeningWaarden } from "../utils/trainingHistorie";
+import { leesTrainingHistorie, maakNieuweTrainingId, voegTrainingToe, vindLaatsteOefeningWaarden } from "../utils/trainingHistorie";
 
 const SETS = [1, 2, 3];
 const ACTIEVE_TRAINING_KEY = "actieveTraining";
 const huidigTijdstip = () => Date.now();
 
 function nieuweSessie(training) {
-  return { training, gegevens: {}, cardio: {}, statussen: {}, voltooideSets: [], timer: 0, startTijd: huidigTijdstip() };
+  return { trainingId: maakNieuweTrainingId(), trainingSchemaId: TRAINING_SCHEMA_IDS[training], training, gegevens: {}, cardio: {}, statussen: {}, voltooideSets: [], timer: 0, startTijd: huidigTijdstip() };
 }
 
 function herstelSessie(initialTraining) {
@@ -127,11 +127,15 @@ function Trainingen({ initialTraining, onTrainingClosed }) {
       (totaal, oefening) => totaal + SETS.filter((setNummer) => sessie.voltooideSets.includes(`${oefening}-${setNummer}`)).length,
       0,
     );
-    const duur = Math.max(1, Math.round((huidigTijdstip() - sessie.startTijd) / 1000));
+    const eindTijd = huidigTijdstip();
+    const duur = Math.max(1, Math.round((eindTijd - sessie.startTijd) / 1000));
     const trainingData = {
-      datum: new Date().toISOString(),
+      trainingId: sessie.trainingId,
+      trainingSchemaId: sessie.trainingSchemaId || TRAINING_SCHEMA_IDS[sessie.training],
+      datum: new Date(eindTijd).toISOString(),
       training: sessie.training,
       startTijd: sessie.startTijd,
+      eindTijd,
       oefeningen: opgeslagenOefeningen,
       cardio: voltooideOnderdelen.includes("Cardio") ? sessie.cardio : {},
       duur,
@@ -142,10 +146,8 @@ function Trainingen({ initialTraining, onTrainingClosed }) {
       isVolledig: voltooideOnderdelen.length === onderdelen.length,
       status: voltooideOnderdelen.length === onderdelen.length ? "Voltooid" : "Gedeeltelijk",
     };
-    const bestaandeTrainingen = historie();
-    bestaandeTrainingen.push(trainingData);
     try {
-      slaTrainingHistorieOp(bestaandeTrainingen);
+      voegTrainingToe(trainingData);
     } catch (error) {
       console.error("Training opslaan mislukt", error);
       bezigMetAfronden.current = false;
@@ -187,7 +189,9 @@ function Trainingen({ initialTraining, onTrainingClosed }) {
       <PrimaryButton className="button--full button--large" icon="✓" disabled={aantalVoltooid === 0} onClick={trainingOpslaan}>Training afronden</PrimaryButton>
       {aantalVoltooid === 0 && <p className="finish-hint">Sla minimaal één oefening op om de training af te ronden.</p>}
       {bevestigOnvolledig && (
-        <div className="confirmation-backdrop" role="presentation" onMouseDown={() => setBevestigOnvolledig(false)}>
+        <div className="confirmation-backdrop" role="presentation" onMouseDown={(event) => {
+          if (event.target === event.currentTarget) setBevestigOnvolledig(false);
+        }}>
           <Card className="confirmation-dialog" role="dialog" aria-modal="true" aria-labelledby="onvolledig-titel" onMouseDown={(event) => event.stopPropagation()}>
             <h2 id="onvolledig-titel">Training onvolledig afronden?</h2>
             <p>Je hebt {aantalVoltooid} van de {onderdelen.length} oefeningen voltooid. De voltooide oefeningen worden opgeslagen. De overige oefeningen worden overgeslagen.</p>

@@ -1,12 +1,13 @@
 {
   "name": "fitnesstracker",
   "private": true,
-  "version": "0.4.0",
+  "version": "0.4.2",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
+    "test:storage": "node scripts/test-training-historie.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

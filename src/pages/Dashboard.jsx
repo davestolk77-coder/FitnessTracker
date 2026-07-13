@@ -2,6 +2,7 @@ import { useState } from "react";
 import { AppHeader, AppScreen, Card, PrimaryButton, SectionCard, StatusBadge } from "../components/ui";
 import { volgendeTraining } from "../data/trainingen";
 import { leesJson } from "../utils/storage";
+import { leesTrainingHistorie } from "../utils/trainingHistorie";
 
 const DOELGEWICHT = 80;
 
@@ -28,8 +29,8 @@ function leesLaatsteGewicht() {
 function Dashboard({ onStartTraining }) {
   const [gewicht, setGewicht] = useState(() => localStorage.getItem("huidigGewicht") || "");
   const [laatsteGewicht, setLaatsteGewicht] = useState(leesLaatsteGewicht);
-  const [historie] = useState(() => leesJson("trainingHistorie", []));
-  const geldigeHistorie = Array.isArray(historie) ? historie : [];
+  const [historie] = useState(leesTrainingHistorie);
+  const geldigeHistorie = historie;
   const laatsteTraining = geldigeHistorie.at(-1) || null;
   const voorstel = volgendeTraining(laatsteTraining?.training);
   const dezeMaand = geldigeHistorie.filter((item) => {

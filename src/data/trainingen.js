@@ -20,5 +20,14 @@ export const trainingen = {
   ],
 };
 
+export const TRAINING_SCHEMA_IDS = {
+  [TRAINING_A]: "training-a",
+  [TRAINING_B]: "training-b",
+};
+
+export const trainingSchemas = Object.fromEntries(
+  Object.entries(trainingen).map(([naam, oefeningen]) => [TRAINING_SCHEMA_IDS[naam], { id: TRAINING_SCHEMA_IDS[naam], naam, oefeningen }]),
+);
+
 export const volgendeTraining = (laatsteTraining) =>
   laatsteTraining === TRAINING_A ? TRAINING_B : TRAINING_A;

@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.4.2 - 2026-07-13
+
+- Niet-uitgevoerde oefeningen kunnen achteraf aan een gedeeltelijke training worden toegevoegd.
+- De bewerkweergave toont uitgevoerde en ontbrekende oefeningen uit het bijbehorende trainingsschema.
+- Een gedeeltelijke training wordt automatisch volledig wanneer alle oefeningen later zijn toegevoegd.
+- Bestaande historie, opslagkeys, exportgegevens en roterende back-ups blijven behouden.
+
+## 0.4.1 - 2026-07-13
+
+- Kritieke oplossing toegevoegd voor het blijvend behouden van trainingshistorie.
+- Gedeeltelijk afgeronde trainingen verschijnen nu correct in Historie.
+- Historie-opslag gebruikt automatische, roterende back-ups, een gecontroleerde tijdelijke schrijfsleutel en rollback bij fouten.
+- Eerdere historie wordt waar mogelijk uit bekende legacy-, back-up- en afgeronde actieve-trainingsstructuren hersteld.
+- Niet-destructieve datanormalisatie vervangt de eerdere migratie die trainingsgegevens kon wissen.
+- Handmatig back-ups exporteren en veilig samenvoegend importeren is toegevoegd aan Historie.
+- App-updates en schemawijzigingen wissen voortaan geen trainingshistorie, records, actieve trainingen of gewichtsgegevens.
+
 ## 0.4.0 - 2026-07-13
 
 - Opgeslagen trainingen kunnen vanuit de historie worden geopend, bekeken en aangepast.

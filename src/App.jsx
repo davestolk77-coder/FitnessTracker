@@ -8,8 +8,14 @@ import Voortgang from "./pages/Voortgang";
 import KrachtGrafiek from "./pages/KrachtGrafiek";
 import { IconButton } from "./components/ui";
 import { migreerTrainingsdata } from "./utils/storage";
+import { initialiseerVeiligeHistorieOpslag } from "./utils/trainingHistorie";
 
 migreerTrainingsdata();
+try {
+  initialiseerVeiligeHistorieOpslag();
+} catch (error) {
+  console.error("Veilige initialisatie van de trainingshistorie is mislukt. Bestaande opslag blijft behouden.", error);
+}
 
 const navigation = [
   { id: "dashboard", label: "Overzicht", icon: "▦" },

@@ -15,8 +15,8 @@ export function AppHeader({ eyebrow, title, subtitle, action }) {
   );
 }
 
-export function Card({ children, className = "", as: Tag = "section" }) {
-  return <Tag className={`card ${className}`.trim()}>{children}</Tag>;
+export function Card({ children, className = "", as: Tag = "section", ...props }) {
+  return <Tag className={`card ${className}`.trim()} {...props}>{children}</Tag>;
 }
 
 export function SectionCard({ title, description, children, className = "" }) {
