@@ -1,18 +1,9 @@
 import { useState } from "react";
 import { AppHeader, AppScreen, Card, EmptyState, StatusBadge } from "../components/ui";
-import { leesJson } from "../utils/storage";
+import { berekenPersoonlijkeRecords, leesTrainingHistorie } from "../utils/trainingHistorie";
 
 function Records() {
-  const [records] = useState(() => {
-    const opgeslagen = leesJson("trainingHistorie", []);
-    const historie = Array.isArray(opgeslagen) ? opgeslagen : [];
-    const nieuweRecords = {};
-    historie.forEach((training) => Object.entries(training.oefeningen || {}).forEach(([oefening, sets]) => Object.values(sets || {}).forEach((setData) => {
-      const gewicht = Number(setData.gewicht || 0);
-      if (!nieuweRecords[oefening] || gewicht > nieuweRecords[oefening]) nieuweRecords[oefening] = gewicht;
-    })));
-    return nieuweRecords;
-  });
+  const [records] = useState(() => berekenPersoonlijkeRecords(leesTrainingHistorie()));
   const lijst = Object.entries(records).sort((a, b) => a[0].localeCompare(b[0]));
   return (
     <AppScreen>

@@ -3,6 +3,7 @@ import { trainingen } from "../data/trainingen";
 import CardioForm from "../components/CardioForm";
 import { AppHeader, AppScreen, Card, PrimaryButton, SecondaryButton, StatusBadge } from "../components/ui";
 import { leesJson } from "../utils/storage";
+import { leesTrainingHistorie, slaTrainingHistorieOp, vindLaatsteOefeningWaarden } from "../utils/trainingHistorie";
 
 const SETS = [1, 2, 3];
 const ACTIEVE_TRAINING_KEY = "actieveTraining";
@@ -30,12 +31,10 @@ function Trainingen({ initialTraining, onTrainingClosed }) {
   const [sessie, setSessie] = useState(() => herstelSessie(initialTraining));
   const [geselecteerd, setGeselecteerd] = useState(null);
   const [melding, setMelding] = useState(false);
+  const [bevestigOnvolledig, setBevestigOnvolledig] = useState(false);
   const bezigMetAfronden = useRef(false);
 
-  const historie = () => {
-    const opgeslagen = leesJson("trainingHistorie", []);
-    return Array.isArray(opgeslagen) ? opgeslagen : [];
-  };
+  const historie = leesTrainingHistorie;
 
   useEffect(() => {
     if (sessie) localStorage.setItem(ACTIEVE_TRAINING_KEY, JSON.stringify(sessie));
@@ -87,12 +86,10 @@ function Trainingen({ initialTraining, onTrainingClosed }) {
   };
 
   const gebruikVorigeTraining = (oefening) => {
-    const items = historie();
-    for (let i = items.length - 1; i >= 0; i--) {
-      if (items[i]?.oefeningen?.[oefening]) {
-        setSessie((vorige) => ({ ...vorige, gegevens: { ...vorige.gegevens, [oefening]: items[i].oefeningen[oefening] } }));
-        return;
-      }
+    const vorigeWaarden = vindLaatsteOefeningWaarden(historie(), oefening);
+    if (vorigeWaarden) {
+      setSessie((vorige) => ({ ...vorige, gegevens: { ...vorige.gegevens, [oefening]: vorigeWaarden } }));
+      return;
     }
     alert("Geen eerdere training gevonden.");
   };
@@ -108,30 +105,74 @@ function Trainingen({ initialTraining, onTrainingClosed }) {
     setSessie((vorige) => ({ ...vorige, voltooideSets: vorige.voltooideSets.includes(sleutel) ? vorige.voltooideSets : [...vorige.voltooideSets, sleutel], timer: 60 }));
   };
   const slaOefeningOp = () => {
-    setSessie((vorige) => ({ ...vorige, statussen: { ...vorige.statussen, [geselecteerd]: "Voltooid" } }));
+    setSessie((vorige) => ({
+      ...vorige,
+      cardio: geselecteerd === "Cardio" && !vorige.cardio.type ? { ...vorige.cardio, type: "Loopband" } : vorige.cardio,
+      statussen: { ...vorige.statussen, [geselecteerd]: "Voltooid" },
+    }));
     setGeselecteerd(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const trainingOpslaan = () => {
+  const trainingDefinitiefOpslaan = () => {
     if (bezigMetAfronden.current) return;
     bezigMetAfronden.current = true;
+    const onderdelen = trainingen[sessie.training];
+    const voltooideOnderdelen = onderdelen.filter((oefening) => sessie.statussen[oefening] === "Voltooid");
+    const voltooideKrachtoefeningen = voltooideOnderdelen.filter((oefening) => oefening !== "Cardio");
+    const opgeslagenOefeningen = Object.fromEntries(
+      voltooideKrachtoefeningen.map((oefening) => [oefening, sessie.gegevens[oefening] || {}]),
+    );
+    const voltooideSets = voltooideKrachtoefeningen.reduce(
+      (totaal, oefening) => totaal + SETS.filter((setNummer) => sessie.voltooideSets.includes(`${oefening}-${setNummer}`)).length,
+      0,
+    );
     const duur = Math.max(1, Math.round((huidigTijdstip() - sessie.startTijd) / 1000));
-    const trainingData = { datum: new Date().toISOString(), training: sessie.training, oefeningen: sessie.gegevens, cardio: sessie.cardio, duur, voltooideSets: sessie.voltooideSets.length, voltooideOefeningen: trainingen[sessie.training].length };
+    const trainingData = {
+      datum: new Date().toISOString(),
+      training: sessie.training,
+      startTijd: sessie.startTijd,
+      oefeningen: opgeslagenOefeningen,
+      cardio: voltooideOnderdelen.includes("Cardio") ? sessie.cardio : {},
+      duur,
+      voltooideSets,
+      voltooidAantal: voltooideOnderdelen.length,
+      voltooideOefeningen: voltooideOnderdelen.length,
+      totaalOefeningen: onderdelen.length,
+      isVolledig: voltooideOnderdelen.length === onderdelen.length,
+      status: voltooideOnderdelen.length === onderdelen.length ? "Voltooid" : "Gedeeltelijk",
+    };
     const bestaandeTrainingen = historie();
     bestaandeTrainingen.push(trainingData);
-    localStorage.setItem("trainingHistorie", JSON.stringify(bestaandeTrainingen));
+    try {
+      slaTrainingHistorieOp(bestaandeTrainingen);
+    } catch (error) {
+      console.error("Training opslaan mislukt", error);
+      bezigMetAfronden.current = false;
+      alert("Training opslaan is niet gelukt. Je actieve training is behouden; probeer het opnieuw.");
+      return;
+    }
     localStorage.removeItem(ACTIEVE_TRAINING_KEY);
     alert("Training opgeslagen!");
     setSessie(null);
     onTrainingClosed();
   };
 
+  const trainingOpslaan = () => {
+    const onderdelen = trainingen[sessie.training];
+    const aantalVoltooid = onderdelen.filter((oefening) => sessie.statussen[oefening] === "Voltooid").length;
+    if (aantalVoltooid === 0) return;
+    if (aantalVoltooid === onderdelen.length) {
+      trainingDefinitiefOpslaan();
+      return;
+    }
+    setBevestigOnvolledig(true);
+  };
+
   if (!sessie) return <AppScreen><AppHeader eyebrow="Aan de slag" title="Kies je training" subtitle="Twee complete trainingen, ieder met zes onderdelen." />{Object.keys(trainingen).map((naam) => <SecondaryButton key={naam} className="training-choice" icon="◆" onClick={() => kiesTraining(naam)}>{naam}<span aria-hidden="true">›</span></SecondaryButton>)}</AppScreen>;
 
   const onderdelen = trainingen[sessie.training];
   const aantalVoltooid = onderdelen.filter((oefening) => sessie.statussen[oefening] === "Voltooid").length;
-  const allesVoltooid = aantalVoltooid === onderdelen.length;
 
   if (!geselecteerd) return (
     <AppScreen className="active-workout">
@@ -143,8 +184,20 @@ function Trainingen({ initialTraining, onTrainingClosed }) {
         const eersteSet = sessie.gegevens[oefening]?.[1] || haalVorigeSetOp(oefening, 1);
         return <button type="button" key={oefening} className={`exercise-overview-card${status === "Voltooid" ? " is-complete" : ""}`} onClick={() => openOefening(oefening)}><span className="exercise-overview-card__copy"><strong>{oefening}</strong><small>{oefening === "Cardio" ? (sessie.cardio.type ? `${sessie.cardio.type}${sessie.cardio.tijd ? ` · ${sessie.cardio.tijd} min` : ""}` : "Cardioresultaat invoeren") : eersteSet ? `Set 1: ${eersteSet.gewicht || 0} kg × ${eersteSet.reps || 0}` : "Nog geen eerdere waarden"}</small></span><StatusBadge tone={status === "Bezig" ? "warning" : status === "Voltooid" ? "success" : "neutral"}>{status === "Voltooid" ? "✓ Voltooid" : status}</StatusBadge><span className="exercise-overview-card__arrow" aria-hidden="true">›</span></button>;
       })}</div>
-      <PrimaryButton className="button--full button--large" icon="✓" disabled={!allesVoltooid} onClick={trainingOpslaan}>Training afronden</PrimaryButton>
-      {!allesVoltooid && <p className="finish-hint">Rond eerst alle oefeningen af. Je kunt ze in elke gewenste volgorde openen.</p>}
+      <PrimaryButton className="button--full button--large" icon="✓" disabled={aantalVoltooid === 0} onClick={trainingOpslaan}>Training afronden</PrimaryButton>
+      {aantalVoltooid === 0 && <p className="finish-hint">Sla minimaal één oefening op om de training af te ronden.</p>}
+      {bevestigOnvolledig && (
+        <div className="confirmation-backdrop" role="presentation" onMouseDown={() => setBevestigOnvolledig(false)}>
+          <Card className="confirmation-dialog" role="dialog" aria-modal="true" aria-labelledby="onvolledig-titel" onMouseDown={(event) => event.stopPropagation()}>
+            <h2 id="onvolledig-titel">Training onvolledig afronden?</h2>
+            <p>Je hebt {aantalVoltooid} van de {onderdelen.length} oefeningen voltooid. De voltooide oefeningen worden opgeslagen. De overige oefeningen worden overgeslagen.</p>
+            <div className="confirmation-dialog__actions">
+              <SecondaryButton onClick={() => setBevestigOnvolledig(false)}>Annuleren</SecondaryButton>
+              <PrimaryButton onClick={trainingDefinitiefOpslaan}>Toch afronden</PrimaryButton>
+            </div>
+          </Card>
+        </div>
+      )}
     </AppScreen>
   );
 

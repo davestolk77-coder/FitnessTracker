@@ -2,27 +2,17 @@ import { useMemo, useState } from "react";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { AppHeader, AppScreen, Card, EmptyState } from "../components/ui";
 import { theme } from "../styles/theme";
-import { leesJson } from "../utils/storage";
+import { leesTrainingHistorie, maakKrachtGrafiekData } from "../utils/trainingHistorie";
 
 function KrachtGrafiek() {
-  const [historie] = useState(() => { const value = leesJson("trainingHistorie", []); return Array.isArray(value) ? value : []; });
+  const [historie] = useState(leesTrainingHistorie);
   const [oefeningen] = useState(() => {
-    const value = leesJson("trainingHistorie", []);
-    const opgeslagenHistorie = Array.isArray(value) ? value : [];
     const uniekeOefeningen = new Set();
-    opgeslagenHistorie.forEach((training) => Object.keys(training.oefeningen || {}).forEach((oefening) => uniekeOefeningen.add(oefening)));
+    leesTrainingHistorie().forEach((training) => Object.keys(training.oefeningen || {}).forEach((oefening) => uniekeOefeningen.add(oefening)));
     return Array.from(uniekeOefeningen);
   });
   const [gekozenOefening, setGekozenOefening] = useState(() => oefeningen[0] || "");
-  const data = useMemo(() => {
-    if (!gekozenOefening) return [];
-    const grafiekData = [];
-    historie.forEach((training, index) => {
-      const oefening = training.oefeningen?.[gekozenOefening];
-      if (oefening) { let hoogsteGewicht = 0; Object.values(oefening).forEach((setData) => { const gewicht = Number(setData.gewicht || 0); if (gewicht > hoogsteGewicht) hoogsteGewicht = gewicht; }); grafiekData.push({ training: index + 1, gewicht: hoogsteGewicht }); }
-    });
-    return grafiekData;
-  }, [gekozenOefening, historie]);
+  const data = useMemo(() => maakKrachtGrafiekData(historie, gekozenOefening), [gekozenOefening, historie]);
   return (
     <AppScreen>
       <AppHeader eyebrow="Ontwikkeling" title="Krachtontwikkeling" subtitle="Bekijk je hoogste gewicht per training." />

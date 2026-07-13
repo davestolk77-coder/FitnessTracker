@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.0 - 2026-07-13
+
+- Opgeslagen trainingen kunnen vanuit de historie worden geopend, bekeken en aangepast.
+- Oefeningen binnen een opgeslagen training kunnen worden gewijzigd of afzonderlijk verwijderd.
+- Volledige trainingen kunnen na een duidelijke bevestiging worden verwijderd.
+- Persoonlijke records, krachtgrafieken en vorige oefenwaarden worden na wijzigingen opnieuw uit de resterende historie berekend.
+- Oudere historie-items blijven compatibel en worden pas bij een gerichte wijziging veilig met ontbrekende statusvelden aangevuld.
+- Bestaande trainingshistorie, actieve trainingen en gewichtsgegevens blijven behouden.
+
 ## 0.3.0 - 2026-07-12
 
 - Oefeningen kunnen tijdens een training in vrije volgorde worden uitgevoerd.
