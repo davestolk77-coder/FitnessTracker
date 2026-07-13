@@ -9,6 +9,9 @@ export default defineConfig({
     VitePWA({
       registerType: "autoUpdate",
       includeAssets: ["icons/favicon.png", "icons/apple-touch-icon.png"],
+      workbox: {
+        navigateFallbackDenylist: [/^\/__\/auth\//, /^\/__\/firebase\//],
+      },
 
       manifest: {
         name: "Fitness Tracker",

@@ -9,7 +9,7 @@ import {
 
 const firebaseConfig = {
   apiKey: "AIzaSyDyDYl1NJ3T2GWTSop9b66GH7NrMiF7wsY",
-  authDomain: "fitnesstracker-a4b97.firebaseapp.com",
+  authDomain: "fitness-tracker-iota-ashy.vercel.app",
   projectId: "fitnesstracker-a4b97",
   storageBucket: "fitnesstracker-a4b97.firebasestorage.app",
   messagingSenderId: "96246322466",

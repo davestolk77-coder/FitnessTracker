@@ -1,7 +1,7 @@
 {
   "name": "fitnesstracker",
   "private": true,
-  "version": "0.7.1",
+  "version": "0.7.3",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "test:storage": "node scripts/test-training-historie.mjs",
     "test:cloud-sync": "node scripts/test-cloud-sync.mjs",
+    "test:auth": "node scripts/test-auth-flow.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

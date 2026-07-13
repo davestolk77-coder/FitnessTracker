@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   browserLocalPersistence,
   getRedirectResult,
@@ -11,13 +11,16 @@ import {
 import { auth, googleProvider } from "../firebase/firebase";
 import { useToast } from "../utils/toastContext";
 import { AuthContext } from "./authContext";
+import {
+  kiesGoogleLoginMethode,
+  maakEenmaligeAsyncTaak,
+  wachtOpAuthInitialisatie,
+} from "./authStrategy";
 
 const GEANNULEERDE_POPUP_CODES = new Set([
   "auth/popup-closed-by-user",
   "auth/cancelled-popup-request",
 ]);
-
-let authVoorbereiding;
 
 function foutmeldingVoor(error) {
   switch (error?.code) {
@@ -34,39 +37,25 @@ function foutmeldingVoor(error) {
   }
 }
 
-function bereidAuthenticatieVoor() {
-  if (!authVoorbereiding) {
-    authVoorbereiding = (async () => {
-      let persistentieFout = null;
-      let redirectFout = null;
-      let redirectResultaat = null;
+const bereidAuthenticatieVoor = maakEenmaligeAsyncTaak(async () => {
+  let persistentieFout = null;
+  let redirectFout = null;
+  let redirectResultaat = null;
 
-      try {
-        await setPersistence(auth, browserLocalPersistence);
-      } catch (error) {
-        persistentieFout = error;
-      }
-
-      try {
-        redirectResultaat = await getRedirectResult(auth);
-      } catch (error) {
-        redirectFout = error;
-      }
-
-      return { persistentieFout, redirectFout, redirectResultaat };
-    })();
+  try {
+    await setPersistence(auth, browserLocalPersistence);
+  } catch (error) {
+    persistentieFout = error;
   }
 
-  return authVoorbereiding;
-}
+  try {
+    redirectResultaat = await getRedirectResult(auth);
+  } catch (error) {
+    redirectFout = error;
+  }
 
-function gebruiktRedirectLogin() {
-  const standalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
-  const kleinScherm = window.matchMedia("(max-width: 768px)").matches;
-  const grovePointer = window.matchMedia("(pointer: coarse)").matches;
-  const heeftTouch = window.navigator.maxTouchPoints > 0;
-  return standalone || (kleinScherm && grovePointer && heeftTouch);
-}
+  return { persistentieFout, redirectFout, redirectResultaat };
+});
 
 export function AuthProvider({ children }) {
   const { showToast } = useToast();
@@ -74,13 +63,40 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState("");
   const [actieBezig, setActieBezig] = useState(false);
+  const loginActieBezig = useRef(false);
 
   useEffect(() => {
     let actief = true;
-    let unsubscribe = () => {};
+    let eersteAuthStateAfgehandeld = false;
+    let laatsteUser = null;
+    let resolveEersteAuthState;
+    let rejectEersteAuthState;
+    const eersteAuthState = new Promise((resolve, reject) => {
+      resolveEersteAuthState = resolve;
+      rejectEersteAuthState = reject;
+    });
 
-    bereidAuthenticatieVoor()
-      .then(({ persistentieFout, redirectFout, redirectResultaat }) => {
+    const unsubscribe = onAuthStateChanged(
+      auth,
+      (user) => {
+        laatsteUser = user;
+        resolveEersteAuthState();
+        if (actief && eersteAuthStateAfgehandeld) setCurrentUser(user);
+      },
+      (error) => {
+        if (!eersteAuthStateAfgehandeld) {
+          rejectEersteAuthState(error);
+          return;
+        }
+        if (!actief) return;
+        const bericht = foutmeldingVoor(error);
+        setAuthError(bericht);
+        showToast(bericht, "error");
+      },
+    );
+
+    wachtOpAuthInitialisatie(bereidAuthenticatieVoor(), eersteAuthState)
+      .then(([{ persistentieFout, redirectFout, redirectResultaat }]) => {
         if (!actief) return;
 
         if (persistentieFout) {
@@ -98,21 +114,9 @@ export function AuthProvider({ children }) {
           showToast("Ingelogd met Google", "success");
         }
 
-        unsubscribe = onAuthStateChanged(
-          auth,
-          (user) => {
-            if (!actief) return;
-            setCurrentUser(user);
-            setLoading(false);
-          },
-          (error) => {
-            if (!actief) return;
-            const bericht = foutmeldingVoor(error);
-            setAuthError(bericht);
-            setLoading(false);
-            showToast(bericht, "error");
-          },
-        );
+        eersteAuthStateAfgehandeld = true;
+        setCurrentUser(laatsteUser);
+        setLoading(false);
       })
       .catch((error) => {
         if (!actief) return;
@@ -129,13 +133,15 @@ export function AuthProvider({ children }) {
   }, [showToast]);
 
   const signInWithGoogle = useCallback(async () => {
+    if (loginActieBezig.current) return;
+    loginActieBezig.current = true;
     setActieBezig(true);
     setAuthError("");
 
     try {
       await setPersistence(auth, browserLocalPersistence);
 
-      if (gebruiktRedirectLogin()) {
+      if (kiesGoogleLoginMethode() === "redirect") {
         await signInWithRedirect(auth, googleProvider);
         return;
       }
@@ -155,6 +161,7 @@ export function AuthProvider({ children }) {
       setAuthError(bericht);
       showToast(bericht, "error");
     } finally {
+      loginActieBezig.current = false;
       setActieBezig(false);
     }
   }, [showToast]);

@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.7.3 - 2026-07-13
+
+- Firebase redirect-auth gebruikt het vaste Vercel-productiedomein als same-origin `authDomain`.
+- Vercel proxyt `/__/auth/*` transparant naar de officiële Firebase Authentication-helper zonder HTTP-redirect.
+- De PWA-navigation fallback blijft uitgesloten voor Firebase-auth- en configuratiepaden.
+- Desktop blijft Google-login via een popup gebruiken; iOS, iPadOS en andere mobiele browsers blijven redirect gebruiken.
+
+## 0.7.2 - 2026-07-13
+
+- Google-login gebruikt op desktop een popup en op iOS, iPadOS en andere mobiele browsers een redirect.
+- De redirectuitkomst wordt tijdens de auth-initialisatie exact eenmaal verwerkt, ook onder React StrictMode.
+- Het inlogscherm verschijnt pas nadat zowel de redirectafhandeling als de eerste Firebase-authstatus gereed zijn.
+- Lokale Firebase Auth-persistentie wordt voor iedere login expliciet ingesteld en dubbele loginacties worden geblokkeerd.
+- Mislukte redirectlogins blijven zichtbaar als duidelijke foutmelding en fouttoast.
+
 ## 0.7.1 - 2026-07-13
 
 - Iedere cloudmutatie krijgt een unieke UUID v4-operationId en de permanente lokale `fitnessDeviceId`.
