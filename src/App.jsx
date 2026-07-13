@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import "./App.css";
 import Dashboard from "./pages/Dashboard";
 import Trainingen from "./pages/Trainingen";
@@ -9,6 +9,7 @@ import KrachtGrafiek from "./pages/KrachtGrafiek";
 import { IconButton } from "./components/ui";
 import { migreerTrainingsdata } from "./utils/storage";
 import { initialiseerVeiligeHistorieOpslag } from "./utils/trainingHistorie";
+import { DATA_GESYNCHRONISEERD_EVENT } from "./sync/localCache";
 
 migreerTrainingsdata();
 try {
@@ -29,16 +30,23 @@ const navigation = [
 function App() {
   const [pagina, setPagina] = useState("dashboard");
   const [directeTraining, setDirecteTraining] = useState(null);
+  const [dataRevision, setDataRevision] = useState(0);
+
+  useEffect(() => {
+    const vernieuw = () => setDataRevision((vorige) => vorige + 1);
+    window.addEventListener(DATA_GESYNCHRONISEERD_EVENT, vernieuw);
+    return () => window.removeEventListener(DATA_GESYNCHRONISEERD_EVENT, vernieuw);
+  }, []);
   const startTraining = (naam) => { setDirecteTraining(naam); setPagina("trainingen"); };
   const openPagina = (naam) => { if (naam !== "trainingen") setDirecteTraining(null); setPagina(naam); };
 
   const pages = {
-    dashboard: <Dashboard onStartTraining={startTraining} />,
-    trainingen: <Trainingen initialTraining={directeTraining} onTrainingClosed={() => setDirecteTraining(null)} />,
-    historie: <Historie />,
-    records: <Records />,
-    voortgang: <Voortgang />,
-    kracht: <KrachtGrafiek />,
+    dashboard: <Dashboard key={`dashboard-${dataRevision}`} onStartTraining={startTraining} />,
+    trainingen: <Trainingen key={`trainingen-${dataRevision}`} initialTraining={directeTraining} onTrainingClosed={() => setDirecteTraining(null)} />,
+    historie: <Historie key={`historie-${dataRevision}`} />,
+    records: <Records key={`records-${dataRevision}`} />,
+    voortgang: <Voortgang key={`voortgang-${dataRevision}`} />,
+    kracht: <KrachtGrafiek key={`kracht-${dataRevision}`} />,
   };
 
   return (

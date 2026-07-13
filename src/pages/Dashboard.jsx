@@ -1,9 +1,13 @@
-import { useState } from "react";
-import { AppHeader, AppScreen, Card, PrimaryButton, SectionCard, StatusBadge } from "../components/ui";
+import { useEffect, useState } from "react";
+import { AppHeader, AppScreen, Card, PrimaryButton, SecondaryButton, SectionCard, StatusBadge } from "../components/ui";
+import { useAuth } from "../auth/authContext";
 import { volgendeTraining } from "../data/trainingen";
 import { leesJson } from "../utils/storage";
 import { leesTrainingHistorie } from "../utils/trainingHistorie";
 import { useToast } from "../utils/toastContext";
+import { DATA_GESYNCHRONISEERD_EVENT } from "../sync/localCache";
+import { meldLokaleWijziging } from "../sync/localChanges";
+import { useCloudSync } from "../sync/syncContext";
 
 const DOELGEWICHT = 80;
 
@@ -29,6 +33,8 @@ function leesLaatsteGewicht() {
 
 function Dashboard({ onStartTraining }) {
   const { showToast } = useToast();
+  const { currentUser, signOutUser, actieBezig } = useAuth();
+  const { status, statusLabel } = useCloudSync();
   const [gewicht, setGewicht] = useState(() => localStorage.getItem("huidigGewicht") || "");
   const [laatsteGewicht, setLaatsteGewicht] = useState(leesLaatsteGewicht);
   const [historie] = useState(leesTrainingHistorie);
@@ -45,6 +51,18 @@ function Dashboard({ onStartTraining }) {
   const doelVoortgang = laatsteGewicht === null ? 0 : doelBehaald ? 100 : Math.max(0, Math.min(99, (DOELGEWICHT / laatsteGewicht) * 100));
   const voltooideSets = laatsteTraining?.voltooideSets ?? Object.values(laatsteTraining?.oefeningen || {}).reduce((totaal, sets) => totaal + Object.keys(sets || {}).length, 0);
   const voltooideOefeningen = laatsteTraining?.voltooideOefeningen ?? Object.keys(laatsteTraining?.oefeningen || {}).length;
+  const voornaam = currentUser?.displayName?.trim().split(/\s+/)[0] || "Dave";
+  const profielLetter = voornaam.charAt(0).toUpperCase();
+
+  useEffect(() => {
+    const vernieuwGewicht = () => {
+      setGewicht(localStorage.getItem("huidigGewicht") || "");
+      setLaatsteGewicht(leesLaatsteGewicht());
+    };
+
+    window.addEventListener(DATA_GESYNCHRONISEERD_EVENT, vernieuwGewicht);
+    return () => window.removeEventListener(DATA_GESYNCHRONISEERD_EVENT, vernieuwGewicht);
+  }, []);
 
   const opslaanGewicht = () => {
     const waarde = Number(gewicht);
@@ -56,11 +74,28 @@ function Dashboard({ onStartTraining }) {
     localStorage.setItem("gewichtHistorie", JSON.stringify(gewichtHistorie));
     setLaatsteGewicht(waarde);
     showToast("Gewicht opgeslagen", "success");
+    meldLokaleWijziging({ type: "profile-upsert", urgent: true });
   };
 
   return (
     <AppScreen>
-      <AppHeader eyebrow="FitnessTracker" title={`${begroetingVoorUur(new Date().getHours())} Dave`} subtitle="Vandaag is weer een kans om sterker te worden." />
+      <AppHeader eyebrow="FitnessTracker" title={`${begroetingVoorUur(new Date().getHours())} ${voornaam}`} subtitle="Vandaag is weer een kans om sterker te worden." />
+
+      <Card className={`sync-status sync-status--${status}`} aria-live="polite">
+        <span className="sync-status__dot" aria-hidden="true" />
+        <span>{statusLabel}</span>
+      </Card>
+
+      <Card className="account-card" aria-label="Ingelogd account">
+        {currentUser?.photoURL
+          ? <img className="account-avatar" src={currentUser.photoURL} alt="" referrerPolicy="no-referrer" />
+          : <span className="account-avatar account-avatar--fallback" aria-hidden="true">{profielLetter}</span>}
+        <div className="account-card__details">
+          <strong>{currentUser?.displayName || voornaam}</strong>
+          <span>{currentUser?.email}</span>
+        </div>
+        <SecondaryButton className="button--compact account-signout" onClick={signOutUser} disabled={actieBezig}>Uitloggen</SecondaryButton>
+      </Card>
 
       <Card className="goal-card">
         <div className="goal-card__top"><div><span className="metric-label">Doelgewicht</span><strong className="goal-weight">{laatsteGewicht !== null ? `${laatsteGewicht.toFixed(1)} kg` : "Nog geen meting"}</strong></div><StatusBadge>{DOELGEWICHT} kg doel</StatusBadge></div>

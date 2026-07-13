@@ -76,6 +76,26 @@
 .toast--error { background: #7f1d1d; border-color: #ef4444; }
 .toast--info { background: #1e3a5f; border-color: #60a5fa; }
 @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.auth-shell { min-height: 100svh; display: grid; place-items: center; padding: max(24px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left)); background: radial-gradient(circle at top, rgba(34,197,94,.12), transparent 30rem), var(--bg); color: var(--text); }
+.auth-shell--loading { align-content: center; }
+.auth-loading { display: flex; align-items: center; gap: 12px; color: var(--text-secondary); font-weight: 700; }
+.auth-spinner { width: 22px; height: 22px; border: 3px solid var(--surface-raised); border-top-color: var(--primary); border-radius: 50%; animation: auth-spin .8s linear infinite; }
+@keyframes auth-spin { to { transform: rotate(360deg); } }
+.auth-card { width: min(100%, 460px); display: grid; gap: 22px; text-align: center; }
+.auth-logo { width: 112px; height: 112px; margin: 0 auto; border-radius: 26px; box-shadow: 0 16px 38px rgba(0,0,0,.34); }
+.auth-card__copy h1 { margin: 5px 0 0; font-size: clamp(1.8rem, 8vw, 2.35rem); }
+.auth-card__copy p { margin: 12px 0 0; color: var(--text-secondary); line-height: 1.55; }
+.google-login-button { gap: 11px; }
+.google-mark { width: 26px; height: 26px; display: inline-grid; place-items: center; color: #111827; background: #fff; border-radius: 50%; font-weight: 900; }
+.auth-error { margin: -8px 0 0; color: #fca5a5; font-weight: 700; line-height: 1.45; }
+.auth-privacy-note { margin: -6px 0 0; color: var(--text-muted); font-size: .8rem; line-height: 1.45; }
+.account-card { display: grid; grid-template-columns: auto minmax(0,1fr) auto; align-items: center; gap: 13px; padding: 14px 16px; }
+.account-avatar { width: 46px; height: 46px; object-fit: cover; border: 2px solid rgba(34,197,94,.55); border-radius: 50%; }
+.account-avatar--fallback { display: grid; place-items: center; color: #052e16; background: var(--primary); font-size: 1.15rem; font-weight: 900; }
+.account-card__details { min-width: 0; display: grid; gap: 3px; }
+.account-card__details strong, .account-card__details span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.account-card__details span { color: var(--text-muted); font-size: .82rem; }
+.account-signout { white-space: nowrap; }
 .training-choice { width: 100%; min-height: 112px; justify-content: space-between; padding: 22px; font-size: 1.35rem; }
 .exercise-card { display: grid; gap: 16px; }
 .active-workout { padding-bottom: 8px; }
@@ -141,6 +161,13 @@
 .backup-tools h2 { font-size: 1.05rem; }
 .backup-tools p { margin: 6px 0 0; color: var(--text-muted); line-height: 1.5; }
 .backup-tools__actions { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; }
+.sync-status { min-height: 46px; display: flex; align-items: center; gap: 10px; padding: 12px 15px; color: var(--text-secondary); font-size: .86rem; font-weight: 700; }
+.sync-status__dot { width: 9px; height: 9px; flex: none; border-radius: 50%; background: #22c55e; box-shadow: 0 0 0 4px rgba(34,197,94,.12); }
+.sync-status--syncing .sync-status__dot, .sync-status--migrating .sync-status__dot, .sync-status--pending .sync-status__dot { background: #f59e0b; box-shadow: 0 0 0 4px rgba(245,158,11,.12); }
+.sync-status--offline .sync-status__dot, .sync-status--error .sync-status__dot, .sync-status--conflict .sync-status__dot { background: #ef4444; box-shadow: 0 0 0 4px rgba(239,68,68,.12); }
+.sync-gate { min-height: 100dvh; display: grid; place-items: center; padding: max(24px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left)); background: var(--background); }
+.sync-gate__card { width: min(100%, 480px); display: grid; gap: 16px; text-align: center; }
+.sync-gate__card p { margin: 0; color: var(--text-secondary); line-height: 1.55; }
 .visually-hidden { position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden !important; clip: rect(0,0,0,0) !important; white-space: nowrap !important; border: 0 !important; }
 .chart-wrap { width: 100%; height: min(350px, 62vw); min-height: 250px; overflow: hidden; }
 .chart-card { padding: 18px 8px 12px; }
@@ -163,10 +190,12 @@
   .confirmation-dialog__actions { grid-template-columns: 1fr; }
   .backup-tools__actions { grid-template-columns: 1fr; }
   .history-exercise--missing { align-items: stretch; flex-direction: column; }
+  .account-card { grid-template-columns: auto minmax(0,1fr); }
+  .account-signout { grid-column: 1 / -1; width: 100%; }
 }
 @media (min-width: 650px) {
   .app-content { padding-top: 28px; }
   .card-grid { grid-template-columns: repeat(3, minmax(0,1fr)); }
   .metric-card--wide { grid-column: auto; }
 }
-@media (prefers-reduced-motion: reduce) { .button { transition: none; } .toast { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .button { transition: none; } .toast, .auth-spinner { animation: none; } }

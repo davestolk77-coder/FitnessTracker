@@ -5,13 +5,15 @@ import { AppHeader, AppScreen, Card, PrimaryButton, SecondaryButton, StatusBadge
 import { leesJson } from "../utils/storage";
 import { leesTrainingHistorie, maakNieuweTrainingId, voegTrainingToe, vindLaatsteOefeningWaarden } from "../utils/trainingHistorie";
 import { useToast } from "../utils/toastContext";
+import { ACTIEVE_TRAINING_KEY, bewaarActieveTraining, verwijderActieveTraining } from "../sync/localCache";
+import { useCloudSync } from "../sync/syncContext";
 
 const SETS = [1, 2, 3];
-const ACTIEVE_TRAINING_KEY = "actieveTraining";
 const huidigTijdstip = () => Date.now();
 
 function nieuweSessie(training) {
-  return { trainingId: maakNieuweTrainingId(), trainingSchemaId: TRAINING_SCHEMA_IDS[training], training, gegevens: {}, cardio: {}, statussen: {}, voltooideSets: [], timer: 0, startTijd: huidigTijdstip() };
+  const sessionId = maakNieuweTrainingId();
+  return { trainingId: sessionId, sessionId, trainingSchemaId: TRAINING_SCHEMA_IDS[training], training, gegevens: {}, cardio: {}, statussen: {}, voltooideSets: [], timer: 0, startTijd: huidigTijdstip(), status: "Actief" };
 }
 
 function herstelSessie(initialTraining) {
@@ -30,6 +32,7 @@ function herstelSessie(initialTraining) {
 
 function Trainingen({ initialTraining, onTrainingClosed }) {
   const { showToast } = useToast();
+  const { voltooiTraining } = useCloudSync();
   const [sessie, setSessie] = useState(() => herstelSessie(initialTraining));
   const [geselecteerd, setGeselecteerd] = useState(null);
   const [bevestigOnvolledig, setBevestigOnvolledig] = useState(false);
@@ -38,7 +41,15 @@ function Trainingen({ initialTraining, onTrainingClosed }) {
   const historie = leesTrainingHistorie;
 
   useEffect(() => {
-    if (sessie) localStorage.setItem(ACTIEVE_TRAINING_KEY, JSON.stringify(sessie));
+    if (sessie) bewaarActieveTraining(sessie);
+  }, [sessie]);
+
+  useEffect(() => {
+    const flushBijAchtergrond = () => {
+      if (document.visibilityState === "hidden" && sessie) bewaarActieveTraining(sessie, { urgent: true });
+    };
+    document.addEventListener("visibilitychange", flushBijAchtergrond);
+    return () => document.removeEventListener("visibilitychange", flushBijAchtergrond);
   }, [sessie]);
 
   useEffect(() => {
@@ -57,14 +68,14 @@ function Trainingen({ initialTraining, onTrainingClosed }) {
 
   const kiesTraining = (training) => {
     const volgende = nieuweSessie(training);
-    localStorage.setItem(ACTIEVE_TRAINING_KEY, JSON.stringify(volgende));
+    bewaarActieveTraining(volgende, { urgent: true });
     setSessie(volgende);
     setGeselecteerd(null);
   };
 
   const stopTraining = () => {
     if (!confirm("Training stoppen? De actieve trainingsgegevens worden verwijderd.")) return;
-    localStorage.removeItem(ACTIEVE_TRAINING_KEY);
+    verwijderActieveTraining({ sessie });
     setSessie(null);
     setGeselecteerd(null);
     onTrainingClosed();
@@ -105,17 +116,19 @@ function Trainingen({ initialTraining, onTrainingClosed }) {
     setSessie((vorige) => ({ ...vorige, voltooideSets: vorige.voltooideSets.includes(sleutel) ? vorige.voltooideSets : [...vorige.voltooideSets, sleutel], timer: 60 }));
   };
   const slaOefeningOp = () => {
-    setSessie((vorige) => ({
-      ...vorige,
-      cardio: geselecteerd === "Cardio" && !vorige.cardio.type ? { ...vorige.cardio, type: "Loopband" } : vorige.cardio,
-      statussen: { ...vorige.statussen, [geselecteerd]: "Voltooid" },
-    }));
+    const volgende = {
+      ...sessie,
+      cardio: geselecteerd === "Cardio" && !sessie.cardio.type ? { ...sessie.cardio, type: "Loopband" } : sessie.cardio,
+      statussen: { ...sessie.statussen, [geselecteerd]: "Voltooid" },
+    };
+    setSessie(volgende);
+    bewaarActieveTraining(volgende, { urgent: true });
     setGeselecteerd(null);
     showToast("Oefening opgeslagen", "success");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const trainingDefinitiefOpslaan = () => {
+  const trainingDefinitiefOpslaan = async () => {
     if (bezigMetAfronden.current) return;
     bezigMetAfronden.current = true;
     const onderdelen = trainingen[sessie.training];
@@ -148,14 +161,14 @@ function Trainingen({ initialTraining, onTrainingClosed }) {
       status: voltooideOnderdelen.length === onderdelen.length ? "Voltooid" : "Gedeeltelijk",
     };
     try {
-      voegTrainingToe(trainingData);
+      const opgeslagen = voegTrainingToe(trainingData, { meldSync: false });
+      await voltooiTraining(opgeslagen.training, sessie);
     } catch (error) {
       console.error("Training opslaan mislukt", error);
       bezigMetAfronden.current = false;
       showToast("Training opslaan is niet gelukt. Je actieve training is behouden; probeer het opnieuw.", "error");
       return;
     }
-    localStorage.removeItem(ACTIEVE_TRAINING_KEY);
     showToast("Training opgeslagen", "success");
     setSessie(null);
     onTrainingClosed();
@@ -209,7 +222,7 @@ function Trainingen({ initialTraining, onTrainingClosed }) {
   const isCardio = geselecteerd === "Cardio";
   return (
     <AppScreen className="active-workout">
-      <SecondaryButton className="back-button button--compact" icon="←" onClick={() => setGeselecteerd(null)}>Terug naar overzicht</SecondaryButton>
+      <SecondaryButton className="back-button button--compact" icon="←" onClick={() => { bewaarActieveTraining(sessie, { urgent: true }); setGeselecteerd(null); }}>Terug naar overzicht</SecondaryButton>
       <AppHeader eyebrow="Oefening" title={geselecteerd} subtitle={sessie.training} />
       {isCardio ? <CardioForm value={sessie.cardio} onCardioChange={(cardio) => setSessie((vorige) => ({ ...vorige, cardio }))} /> : (
         <Card className="exercise-card">

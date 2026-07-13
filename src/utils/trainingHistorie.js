@@ -1,4 +1,5 @@
 import { TRAINING_SCHEMA_IDS, trainingSchemas, trainingen } from "../data/trainingen.js";
+import { meldLokaleWijziging } from "../sync/localChanges.js";
 
 export const HISTORIE_SCHEMA_VERSION = 1;
 export const HISTORIE_KEYS = {
@@ -379,12 +380,20 @@ export function schrijfTrainingHistorie(nieuweHistorie, { explicieteVerwijdering
   }
 }
 
-export function voegTrainingToe(training) {
+export function voegTrainingToe(training, { meldSync = true } = {}) {
   const huidigeHistorie = leesTrainingHistorie();
-  const nieuwItem = normaliseerHistorieItem({ ...training, trainingId: training.trainingId || maakNieuweTrainingId() });
+  const nu = new Date().toISOString();
+  const nieuwItem = normaliseerHistorieItem({
+    ...training,
+    trainingId: training.trainingId || maakNieuweTrainingId(),
+    createdAtLocal: training.createdAtLocal || nu,
+    updatedAtLocal: nu,
+  });
   const resultaat = schrijfTrainingHistorie([...huidigeHistorie, nieuwItem], { reden: "training toevoegen" });
   if (!resultaat.some((item) => item.trainingId === nieuwItem.trainingId)) throw new Error("De toegevoegde training kon niet worden teruggelezen.");
-  return { historie: resultaat, training: resultaat.find((item) => item.trainingId === nieuwItem.trainingId) };
+  const opgeslagenTraining = resultaat.find((item) => item.trainingId === nieuwItem.trainingId);
+  if (meldSync) meldLokaleWijziging({ type: "history-upsert", data: opgeslagenTraining, urgent: true });
+  return { historie: resultaat, training: opgeslagenTraining };
 }
 
 export function werkTrainingBij(trainingId, bijgewerktItem) {
@@ -392,15 +401,24 @@ export function werkTrainingBij(trainingId, bijgewerktItem) {
   const index = huidigeHistorie.findIndex((item) => item.trainingId === trainingId);
   if (index === -1) throw new Error("De geselecteerde training bestaat niet meer.");
   const volgendeHistorie = [...huidigeHistorie];
-  volgendeHistorie[index] = normaliseerHistorieItem({ ...bijgewerktItem, trainingId });
-  return schrijfTrainingHistorie(volgendeHistorie, { reden: "training bijwerken" });
+  volgendeHistorie[index] = normaliseerHistorieItem({
+    ...bijgewerktItem,
+    trainingId,
+    createdAtLocal: huidigeHistorie[index].createdAtLocal || bijgewerktItem.createdAtLocal || huidigeHistorie[index].datum,
+    updatedAtLocal: new Date().toISOString(),
+  });
+  const resultaat = schrijfTrainingHistorie(volgendeHistorie, { reden: "training bijwerken" });
+  meldLokaleWijziging({ type: "history-upsert", data: resultaat.find((item) => item.trainingId === trainingId), urgent: true });
+  return resultaat;
 }
 
 export function verwijderTraining(trainingId) {
   const huidigeHistorie = leesTrainingHistorie();
   const volgendeHistorie = huidigeHistorie.filter((item) => item.trainingId !== trainingId);
   if (volgendeHistorie.length === huidigeHistorie.length) throw new Error("De geselecteerde training bestaat niet meer.");
-  return schrijfTrainingHistorie(volgendeHistorie, { explicieteVerwijdering: true, reden: "training verwijderen" });
+  const resultaat = schrijfTrainingHistorie(volgendeHistorie, { explicieteVerwijdering: true, reden: "training verwijderen" });
+  meldLokaleWijziging({ type: "history-delete", data: { trainingId }, urgent: true });
+  return resultaat;
 }
 
 export function verwijderOefeningUitTraining(training, oefening) {
@@ -456,6 +474,7 @@ export function maakFitnessBackupData() {
     gewichtHistorie: leesOptioneleJsonKey("gewichtHistorie") || [],
     records: berekenPersoonlijkeRecords(trainingHistorie),
     actieveTraining: leesOptioneleJsonKey("actieveTraining"),
+    instellingen: leesOptioneleJsonKey("appInstellingen"),
   };
 }
 
@@ -474,6 +493,7 @@ export function valideerFitnessBackup(inhoud) {
   }
   if (!isObject(data) || !Array.isArray(data.trainingHistorie)) throw new Error("Dit is geen geldige FitnessTracker-back-up.");
   if (data.gewichtHistorie !== undefined && !Array.isArray(data.gewichtHistorie)) throw new Error("De gewichtshistorie in de back-up heeft een ongeldig formaat.");
+  if (data.instellingen !== undefined && data.instellingen !== null && !isObject(data.instellingen)) throw new Error("De instellingen in de back-up hebben een ongeldig formaat.");
   const trainingHistorie = normaliseerTrainingHistorie(data.trainingHistorie);
   if (data.trainingHistorie.length > 0 && trainingHistorie.length === 0) throw new Error("De back-up bevat geen herkenbare trainingen.");
   return {
@@ -513,5 +533,9 @@ export function importeerFitnessBackup(inhoud) {
   if (localStorage.getItem("actieveTraining") === null && isObject(data.actieveTraining)) {
     localStorage.setItem("actieveTraining", JSON.stringify(data.actieveTraining));
   }
+  if (localStorage.getItem("appInstellingen") === null && isObject(data.instellingen)) {
+    localStorage.setItem("appInstellingen", JSON.stringify(data.instellingen));
+  }
+  meldLokaleWijziging({ type: "full-sync", urgent: true });
   return opgeslagenHistorie;
 }

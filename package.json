@@ -1,16 +1,18 @@
 {
   "name": "fitnesstracker",
   "private": true,
-  "version": "0.4.2",
+  "version": "0.7.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
     "test:storage": "node scripts/test-training-historie.mjs",
+    "test:cloud-sync": "node scripts/test-cloud-sync.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
+    "firebase": "^12.16.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "recharts": "^3.8.1"
