@@ -103,20 +103,7 @@ function Trainingen({ initialTraining, onTrainingClosed }) {
   };
 
   const openOefening = (oefening) => {
-    setSessie((vorige) => {
-      const heeftSessieWaarden = oefening === "Cardio"
-        ? Object.keys(vorige.cardio || {}).length > 0
-        : Object.keys(vorige.gegevens?.[oefening] || {}).length > 0;
-      const laatsteWaarden = heeftSessieWaarden ? null : oefening === "Cardio"
-        ? vindLaatsteCardioWaarden(historie())
-        : vindLaatsteOefeningWaarden(historie(), OEFENING_IDS[oefening]);
-      return {
-        ...vorige,
-        ...(oefening === "Cardio" && laatsteWaarden ? { cardio: { ...laatsteWaarden } } : {}),
-        ...(oefening !== "Cardio" && laatsteWaarden ? { gegevens: { ...vorige.gegevens, [oefening]: laatsteWaarden } } : {}),
-        statussen: { ...vorige.statussen, [oefening]: vorige.statussen[oefening] === "Voltooid" ? "Voltooid" : "Bezig" },
-      };
-    });
+    setSessie((vorige) => ({ ...vorige, statussen: { ...vorige.statussen, [oefening]: vorige.statussen[oefening] === "Voltooid" ? "Voltooid" : "Bezig" } }));
     setGeselecteerd(oefening);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -125,13 +112,18 @@ function Trainingen({ initialTraining, onTrainingClosed }) {
     return vindLaatsteOefeningWaarden(historie(), OEFENING_IDS[oefening])?.[setNummer] || null;
   };
 
-  const gebruikVorigeTraining = (oefening) => {
-    const vorigeWaarden = vindLaatsteOefeningWaarden(historie(), oefening);
+  const herstelVorigeWaarden = (oefening) => {
+    const vorigeWaarden = oefening === "Cardio"
+      ? vindLaatsteCardioWaarden(historie())
+      : vindLaatsteOefeningWaarden(historie(), OEFENING_IDS[oefening]);
     if (vorigeWaarden) {
-      setSessie((vorige) => ({ ...vorige, gegevens: { ...vorige.gegevens, [oefening]: vorigeWaarden } }));
+      setSessie((vorige) => oefening === "Cardio"
+        ? { ...vorige, cardio: { ...vorigeWaarden } }
+        : { ...vorige, gegevens: { ...vorige.gegevens, [oefening]: vorigeWaarden } });
+      showToast(`Vorige waarden voor ${oefening} hersteld`, "success");
       return;
     }
-    showToast("Geen eerdere training gevonden", "info");
+    showToast(`Geen eerdere waarden voor ${oefening} gevonden.`, "info");
   };
 
   const haalRecordOp = (oefening) => berekenPersoonlijkeRecords(historie())[oefening] || 0;
@@ -234,9 +226,9 @@ function Trainingen({ initialTraining, onTrainingClosed }) {
     <AppScreen className="active-workout">
       <SecondaryButton className="back-button button--compact" icon="←" onClick={() => { bewaarActieveTraining(sessie, { urgent: true }); setGeselecteerd(null); }}>Terug naar overzicht</SecondaryButton>
       <AppHeader eyebrow="Oefening" title={geselecteerd} subtitle={sessie.training} />
-      {isCardio ? <CardioForm value={sessie.cardio} onCardioChange={(cardio) => setSessie((vorige) => ({ ...vorige, cardio }))} /> : (
+      {isCardio ? <><div className="exercise-header"><span /><SecondaryButton className="button--compact" icon="↶" onClick={() => herstelVorigeWaarden(geselecteerd)}>Herstel vorige waarde</SecondaryButton></div><CardioForm value={sessie.cardio} onCardioChange={(cardio) => setSessie((vorige) => ({ ...vorige, cardio }))} /></> : (
         <Card className="exercise-card">
-          <div className="exercise-header"><div><h2>{geselecteerd}</h2><div style={{ marginTop: 8 }}><StatusBadge tone="warning">Record: {haalRecordOp(geselecteerd)} kg</StatusBadge></div></div><SecondaryButton className="button--compact" icon="↶" onClick={() => gebruikVorigeTraining(geselecteerd)}>Vorige waarden</SecondaryButton></div>
+          <div className="exercise-header"><div><h2>{geselecteerd}</h2><div style={{ marginTop: 8 }}><StatusBadge tone="warning">Record: {haalRecordOp(geselecteerd)} kg</StatusBadge></div></div><SecondaryButton className="button--compact" icon="↶" onClick={() => herstelVorigeWaarden(geselecteerd)}>Herstel vorige waarde</SecondaryButton></div>
           <div className="timer-row"><span className="field-label">Rusttimer</span><StatusBadge tone={sessie.timer > 0 ? "warning" : "success"}>{sessie.timer > 0 ? `${sessie.timer}s resterend` : "Klaar"}</StatusBadge></div>
           <div className="sets">{SETS.map((setNummer) => {
             const vorigeSet = haalVorigeSetOp(geselecteerd, setNummer);

@@ -20,9 +20,9 @@ vi.mock("../sync/cloudSync", () => ({
   voltooiTrainingMetCloudVerificatie: vi.fn(async () => true),
 }));
 
-function AppOnderTest() {
+function AppOnderTest({ showToast = vi.fn() }) {
   return (
-    <ToastContext.Provider value={{ showToast: vi.fn(), hideToast: vi.fn() }}>
+    <ToastContext.Provider value={{ showToast, hideToast: vi.fn() }}>
       <AuthContext.Provider value={{ currentUser: { uid: "test-user" }, signOutUser: vi.fn() }}>
         <SyncProvider>
           <Trainingen initialTraining={TRAINING_A} onTrainingClosed={vi.fn()} />
@@ -66,7 +66,7 @@ describe("actieve oefening tijdens autosave", () => {
     expect(document.getElementById("Chest Press-1-kg").value).toBe("80");
   });
 
-  it("laadt een laatst opgeslagen A-oefening automatisch in Vrije training", async () => {
+  it("overschrijft actieve invoer pas na expliciet herstellen uit oude A-historie", async () => {
     localStorage.setItem("trainingHistorie", JSON.stringify([{
       trainingId: "oude-a-training",
       training: TRAINING_A,
@@ -79,9 +79,21 @@ describe("actieve oefening tijdens autosave", () => {
     render(<AppOnderTest />);
     await act(async () => { await Promise.resolve(); });
     fireEvent.click(screen.getByRole("button", { name: /Chest Press/ }));
-
+    expect(document.getElementById("Chest Press-1-kg").value).toBe("");
+    fireEvent.change(document.getElementById("Chest Press-1-kg"), { target: { value: "99" } });
+    expect(document.getElementById("Chest Press-1-kg").value).toBe("99");
+    fireEvent.click(screen.getByRole("button", { name: "Herstel vorige waarde" }));
     expect(document.getElementById("Chest Press-1-kg").value).toBe("77");
     expect(document.getElementById("Chest Press-1-reps").value).toBe("9");
     expect(screen.getByText("Vrije training")).not.toBeNull();
+  });
+
+  it("noemt de oefening wanneer geen eerdere waarden bestaan", async () => {
+    const showToast = vi.fn();
+    render(<AppOnderTest showToast={showToast} />);
+    await act(async () => { await Promise.resolve(); });
+    fireEvent.click(screen.getByRole("button", { name: /Chest Press/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Herstel vorige waarde" }));
+    expect(showToast).toHaveBeenCalledWith("Geen eerdere waarden voor Chest Press gevonden.", "info");
   });
 });

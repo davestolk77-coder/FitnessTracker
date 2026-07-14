@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.2 - 2026-07-14
+
+- “Herstel vorige waarde” zoekt uitsluitend via de stabiele oefening-ID in alle historie van Training A, Training B en Vrije training.
+- Openen van een oefening vult niets meer automatisch in; alleen een expliciete herstelactie overschrijft de huidige actieve invoer.
+- Cardio heeft nu dezelfde handmatige herstelactie en foutmeldingen noemen de actuele oefening in plaats van een training.
+
 ## 0.8.1 - 2026-07-14
 
 - Vrije training laadt bij het openen automatisch de chronologisch nieuwste opgeslagen oefeningwaarden uit Training A, Training B of Vrije training.
