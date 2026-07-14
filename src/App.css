@@ -33,6 +33,18 @@
 .goal-message--success { color: #86efac; font-weight: 700; }
 .next-training-name { display: block; margin: -2px 0 16px; color: var(--text); font-size: 1.2rem; line-height: 1.35; }
 .dashboard-stats .metric-value { font-size: clamp(1.25rem, 5vw, 1.8rem); }
+.dashboard-version {
+  position: fixed;
+  right: 0;
+  bottom: calc(76px + env(safe-area-inset-bottom));
+  left: 0;
+  z-index: 1;
+  color: #9ca3af;
+  font-size: 0.7rem;
+  line-height: 1;
+  text-align: center;
+  pointer-events: none;
+}
 .last-training { display: grid; gap: 12px; }
 .last-training > strong { font-size: 1.15rem; }
 .last-training__details { display: flex; flex-wrap: wrap; gap: 8px; }

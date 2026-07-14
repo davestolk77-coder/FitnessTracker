@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.8 - 2026-07-14
+
+- Het Dashboard toont onderaan een kleine, gecentreerde versie-indicator.
+- Het getoonde versienummer wordt via een centrale versiebron rechtstreeks uit `package.json` ingelezen en verandert automatisch mee met toekomstige versieverhogingen.
+
 ## 0.7.7 - 2026-07-14
 
 - De browser-`online`-afhandeling start geen volledige cloudinitialisatie met blokkerende sync-gate meer tijdens een actieve training.

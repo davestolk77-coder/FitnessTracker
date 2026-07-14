@@ -8,6 +8,7 @@ import { useToast } from "../utils/toastContext";
 import { DATA_GESYNCHRONISEERD_EVENT } from "../sync/localCache";
 import { meldLokaleWijziging } from "../sync/localChanges";
 import { useCloudSync } from "../sync/syncContext";
+import { APP_VERSION } from "../config/appVersion";
 
 const DOELGEWICHT = 80;
 
@@ -121,6 +122,8 @@ function Dashboard({ onStartTraining }) {
       <SectionCard title="Laatste training" description={laatsteTraining ? new Date(laatsteTraining.datum).toLocaleString("nl-NL") : "Nog geen training afgerond."}>
         {laatsteTraining ? <div className="last-training"><strong>{laatsteTraining.training || "Training"}</strong><div className="last-training__details">{formatDuur(laatsteTraining.duur) && <span>{formatDuur(laatsteTraining.duur)}</span>}<span>{voltooideOefeningen} {voltooideOefeningen === 1 ? "oefening" : "oefeningen"}</span><span>{voltooideSets} sets</span></div></div> : <p className="muted-text">Start Training A om je eerste resultaat vast te leggen.</p>}
       </SectionCard>
+
+      <small className="dashboard-version">FitnessTracker v{APP_VERSION}</small>
     </AppScreen>
   );
 }
