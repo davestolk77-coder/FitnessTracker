@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.4 - 2026-07-14
+
+- De sync-timestampnormalisatie accepteert nu veilig `null`, `undefined`, ontbrekende en ongeldige `updatedAt`-waarden.
+- Lokale en Firestore-historie, tombstones en actieve trainingsdata worden vóór merge en sortering beperkt tot geldige objecten; corrupte items kunnen de app niet meer laten crashen.
+- Een eenmalige, niet-destructieve lokale normalisatie verwijdert null-items uit bestaande Chrome-opslag en behoudt alle geldige historie.
+- De tijdelijke globale rode foutoverlay blijft aanwezig voor bevestiging van de iPhone-fix.
+
 ## 0.8.3 - 2026-07-14
 
 - De Dashboard-versie-indicator gebruikt voortaan dezelfde berekende navigatiehoogte en iOS-safe-area als de onderste navigatie en blijft daar zichtbaar boven.

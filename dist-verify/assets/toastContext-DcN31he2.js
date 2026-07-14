@@ -1,0 +1,1 @@
+import{o as e,r as t}from"./index-Bt1pL-1o.js";var n=e(t(),1),r=(0,n.createContext)(null);function i(){let e=(0,n.useContext)(r);if(!e)throw Error(`useToast moet binnen ToastProvider worden gebruikt.`);return e}export{i as n,r as t};

@@ -14,7 +14,7 @@ import {
   voerVeiligeCloudMigratieUit,
   voltooiTrainingMetCloudVerificatie,
 } from "./cloudSync";
-import { bindLokaleDataAanUid, controleerLokaleDataEigenaar, maakCloudMigratieBackup } from "./localCache";
+import { bindLokaleDataAanUid, controleerLokaleDataEigenaar, maakCloudMigratieBackup, normaliseerLokaleSyncDataEenmalig } from "./localCache";
 import { volgLokaleWijzigingen } from "./localChanges";
 import { getDeviceId } from "./syncIdentity";
 import { SyncContext } from "./syncContext";
@@ -73,6 +73,7 @@ export function SyncProvider({ children }) {
       if (isEersteInitialisatieVoorUid) setReady(false);
       setBlockingError("");
       try {
+        normaliseerLokaleSyncDataEenmalig(uid);
         controleerLokaleDataEigenaar(uid);
         maakCloudMigratieBackup(uid);
         bindLokaleDataAanUid(uid);

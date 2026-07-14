@@ -33,6 +33,7 @@ import {
   kiesNieuwsteGeldige,
   mergeHistorieOpId,
   mergeProfielen,
+  normaliseerSyncObjectArray,
   rijkdomScore,
   timestampMillis,
 } from "./syncModel";
@@ -115,6 +116,10 @@ function profileInhoudGelijk(cloudData, lokaal) {
 
 function cloudTrainingNaarLokaal(snapshot) {
   const data = snapshot.data();
+  if (!geldigObject(data)) {
+    if (import.meta.env?.DEV) console.warn("[FitnessTracker sync] Ongeldig Firestore-historiedocument overgeslagen.", snapshot.id, data);
+    return null;
+  }
   return normaliseerHistorieItem({
     ...data,
     trainingId: snapshot.id,
@@ -203,7 +208,7 @@ function tombstoneRef(uid, entityType, entityId) {
 
 async function schrijfHistorieBatch(uid, historie, bestaandeCloudHistorie = new Map()) {
   const refs = refsVoor(uid);
-  const teUploaden = historie.filter((training) => {
+  const teUploaden = normaliseerSyncObjectArray(historie, "historiebatch").filter((training) => {
     const bestaand = bestaandeCloudHistorie.get(training.trainingId);
     if (!bestaand || !bestaand.operationId || !bestaand.deviceId) return true;
     const lokaalTijdstip = entityTimestamp(training);
@@ -360,12 +365,13 @@ export async function voerVeiligeCloudMigratieUit(uid, { onConflict } = {}) {
     getDocs(refs.tombstones),
   ]);
 
-  const verwijderdeHistorieIds = new Set(tombstoneSnap.docs
+  const verwijderdeHistorieIds = new Set(normaliseerSyncObjectArray(tombstoneSnap.docs
     .map((snapshot) => snapshot.data())
+    , "cloudtombstones")
     .filter((item) => item.entityType === "trainingHistory")
     .map((item) => String(item.entityId)));
   const lokaleHistorie = leesTrainingHistorie();
-  const cloudHistorie = historySnap.docs.map(cloudTrainingNaarLokaal);
+  const cloudHistorie = normaliseerSyncObjectArray(historySnap.docs.map(cloudTrainingNaarLokaal), "cloudhistorie");
   const cloudHistoriePerId = new Map(cloudHistorie.map((training) => [training.trainingId, training]));
   const samengevoegdeHistorie = normaliseerTrainingHistorie(mergeHistorieOpId(lokaleHistorie, cloudHistorie, verwijderdeHistorieIds));
   const profile = mergeProfielen(lokaalProfiel(), profileSnap.exists() ? cloudProfiel(profileSnap.data()) : {});
@@ -449,7 +455,7 @@ export function startCloudListeners(uid, { onData, onError } = {}) {
 
   unsubscribers.push(onSnapshot(refs.history, { includeMetadataChanges: true }, (snapshot) => {
     if (snapshot.metadata.hasPendingWrites) return;
-    const cloud = snapshot.docs.map(cloudTrainingNaarLokaal);
+    const cloud = normaliseerSyncObjectArray(snapshot.docs.map(cloudTrainingNaarLokaal), "Firestore-listener historie");
     const lokaal = leesTrainingHistorie();
     const merged = normaliseerTrainingHistorie(mergeHistorieOpId(lokaal, cloud));
     if (JSON.stringify(merged) !== JSON.stringify(lokaal)) {
@@ -461,12 +467,12 @@ export function startCloudListeners(uid, { onData, onError } = {}) {
   }, onError));
 
   unsubscribers.push(onSnapshot(refs.tombstones, (snapshot) => {
-    const verwijderdeIds = new Set(snapshot.docs.map((item) => item.data())
+    const verwijderdeIds = new Set(normaliseerSyncObjectArray(snapshot.docs.map((item) => item.data()), "Firestore-listener tombstones")
       .filter((item) => item.entityType === "trainingHistory")
       .map((item) => String(item.entityId)));
     if (verwijderdeIds.size === 0) return;
     const lokaal = leesTrainingHistorie();
-    const behouden = lokaal.filter((item) => !verwijderdeIds.has(item.trainingId));
+    const behouden = normaliseerSyncObjectArray(lokaal, "lokale historie bij tombstones").filter((item) => !verwijderdeIds.has(item.trainingId));
     if (behouden.length < lokaal.length) {
       schrijfTrainingHistorie(behouden, { explicieteVerwijdering: true, reden: "cloudverwijdering toepassen", meldSync: false });
       bewaarUidCache(uid);

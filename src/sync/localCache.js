@@ -1,11 +1,46 @@
 import { leesJson } from "../utils/storage.js";
 import { maakFitnessBackupData } from "../utils/trainingHistorie.js";
-import { CLOUD_OWNER_KEY } from "./syncModel.js";
+import { CLOUD_OWNER_KEY, isPlainObject } from "./syncModel.js";
 import { meldLokaleWijziging } from "./localChanges.js";
 
 export const ACTIEVE_TRAINING_KEY = "actieveTraining";
 export const INSTELLINGEN_KEY = "appInstellingen";
 export const DATA_GESYNCHRONISEERD_EVENT = "fitnessTracker:data-gesynchroniseerd";
+const NULL_NORMALISATIE_KEY = "fitnessSyncNullNormalizationV1";
+
+function normaliseerJsonArrayKey(sleutel) {
+  const ruw = localStorage.getItem(sleutel);
+  if (ruw === null) return false;
+  try {
+    const waarde = JSON.parse(ruw);
+    if (!Array.isArray(waarde)) return false;
+    const geldig = waarde.filter(isPlainObject);
+    if (geldig.length === waarde.length) return false;
+    localStorage.setItem(sleutel, JSON.stringify(geldig));
+    return true;
+  } catch { return false; }
+}
+
+function verwijderNullObjectKey(sleutel) {
+  const ruw = localStorage.getItem(sleutel);
+  if (ruw === null) return false;
+  try {
+    if (JSON.parse(ruw) !== null) return false;
+    localStorage.removeItem(sleutel);
+    return true;
+  } catch { return false; }
+}
+
+export function normaliseerLokaleSyncDataEenmalig(uid) {
+  if (localStorage.getItem(NULL_NORMALISATIE_KEY) === "1") return false;
+  const historieKeys = ["trainingHistorie", uid ? `fitness:${uid}:trainingHistorie` : null].filter(Boolean);
+  const objectKeys = [ACTIEVE_TRAINING_KEY, INSTELLINGEN_KEY, uid ? `fitness:${uid}:actieveTraining` : null, uid ? `fitness:${uid}:settings` : null].filter(Boolean);
+  let gewijzigd = false;
+  historieKeys.forEach((sleutel) => { gewijzigd = normaliseerJsonArrayKey(sleutel) || gewijzigd; });
+  objectKeys.forEach((sleutel) => { gewijzigd = verwijderNullObjectKey(sleutel) || gewijzigd; });
+  localStorage.setItem(NULL_NORMALISATIE_KEY, "1");
+  return Boolean(gewijzigd);
+}
 
 export function bindLokaleDataAanUid(uid) {
   const eigenaar = localStorage.getItem(CLOUD_OWNER_KEY);

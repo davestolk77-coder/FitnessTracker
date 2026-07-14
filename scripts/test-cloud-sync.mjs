@@ -4,7 +4,15 @@ import {
   kiesNieuwsteGeldige,
   mergeHistorieOpId,
   mergeProfielen,
+  entityTimestamp,
+  normaliseerSyncObjectArray,
 } from "../src/sync/syncModel.js";
+
+assert.equal(entityTimestamp(null), 0, "null-entiteit mag updatedAt niet derefereren");
+assert.equal(entityTimestamp(undefined), 0, "undefined-entiteit moet een veilige timestamp krijgen");
+assert.equal(entityTimestamp({ updatedAt: null }), 0, "ontbrekende/null Firestore-updatedAt moet veilig zijn");
+assert.equal(entityTimestamp({ updatedAt: "geen-datum" }), 0, "ongeldige updatedAt moet terugvallen op nul");
+assert.deepEqual(normaliseerSyncObjectArray([null, undefined, { trainingId: "geldig" }]).map((item) => item.trainingId), ["geldig"]);
 
 const training = (id, updatedAtLocal, extra = {}) => ({
   trainingId: id,
@@ -28,6 +36,7 @@ assert.equal(mergeHistorieOpId([lokaalOud], [cloudNieuw])[0].status, "Voltooid",
 const eenKeer = mergeHistorieOpId(lokaal, cloud);
 const tweeKeer = mergeHistorieOpId(eenKeer, cloud);
 assert.equal(tweeKeer.length, 2, "herhaalde migratie mag geen duplicaten maken");
+assert.deepEqual(mergeHistorieOpId([null, ...lokaal, undefined], [...cloud, null]).map((item) => item.trainingId), ["lokaal-1", "cloud-1"], "corrupte items mogen geldige lokale en cloudhistorie niet verwijderen");
 
 const tombstones = new Set(["cloud-1"]);
 assert.deepEqual(mergeHistorieOpId(lokaal, cloud, tombstones).map((item) => item.trainingId), ["lokaal-1"], "tombstone moet stale herintroductie blokkeren");
@@ -58,6 +67,12 @@ const lokaleCache = await import("../src/sync/localCache.js");
 const syncIdentity = await import("../src/sync/syncIdentity.js");
 lokaleCache.bindLokaleDataAanUid("uid-a");
 assert.equal(localStorage.getItem("fitnessCloudDataOwnerUid"), "uid-a", "legacy-cache moet aan de eerste UID worden gebonden");
+localStorage.setItem("trainingHistorie", JSON.stringify([null, training("chrome-geldig", "2026-07-13T10:00:00.000Z"), undefined]));
+localStorage.setItem("actieveTraining", "null");
+assert.equal(lokaleCache.normaliseerLokaleSyncDataEenmalig("uid-a"), true, "bestaande Chrome-opslag moet eenmalig worden genormaliseerd");
+assert.deepEqual(JSON.parse(localStorage.getItem("trainingHistorie")).map((item) => item.trainingId), ["chrome-geldig"]);
+assert.equal(localStorage.getItem("actieveTraining"), null, "null-actieve training moet als afwezig worden behandeld");
+assert.equal(lokaleCache.normaliseerLokaleSyncDataEenmalig("uid-a"), false, "normalisatie moet eenmalig zijn");
 assert.throws(() => lokaleCache.controleerLokaleDataEigenaar("uid-b"), /ander Google-account/, "accountwisseling mag caches niet mengen");
 const sessieEen = lokaleCache.bewaarActieveTraining({ trainingId: "sessie-1", training: "Training A" }, { notify: false });
 const sessieTwee = lokaleCache.bewaarActieveTraining({ ...sessieEen, timer: 1 }, { notify: false });

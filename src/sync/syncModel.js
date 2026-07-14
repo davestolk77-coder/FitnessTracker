@@ -2,19 +2,42 @@ export const CLOUD_SCHEMA_VERSION = 1;
 export const CLOUD_MIGRATION_VERSION = 1;
 export const CLOUD_OWNER_KEY = "fitnessCloudDataOwnerUid";
 
+export function isPlainObject(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+}
+
+function logOngeldigSyncItem(context, value) {
+  if (import.meta.env?.DEV) console.warn(`[FitnessTracker sync] Ongeldig item overgeslagen (${context}).`, value);
+}
+
+export function normaliseerSyncObjectArray(value, context = "array") {
+  if (!Array.isArray(value)) {
+    if (value !== undefined && value !== null) logOngeldigSyncItem(context, value);
+    return [];
+  }
+  return value.filter((item) => {
+    const geldig = isPlainObject(item);
+    if (!geldig) logOngeldigSyncItem(context, item);
+    return geldig;
+  });
+}
+
 export function timestampMillis(value) {
   if (typeof value?.toMillis === "function") return value.toMillis();
   const millis = new Date(value ?? 0).getTime();
   return Number.isFinite(millis) ? millis : 0;
 }
 
-export function entityTimestamp(entity = {}) {
+export function entityTimestamp(entity) {
+  const veilig = isPlainObject(entity) ? entity : {};
   return Math.max(
-    timestampMillis(entity.updatedAt),
-    timestampMillis(entity.updatedAtLocal),
-    timestampMillis(entity.datum),
-    Number(entity.eindTijd) || 0,
-    Number(entity.startTijd) || 0,
+    timestampMillis(veilig.updatedAt),
+    timestampMillis(veilig.updatedAtLocal),
+    timestampMillis(veilig.datum),
+    Number(veilig.eindTijd) || 0,
+    Number(veilig.startTijd) || 0,
   );
 }
 
@@ -49,8 +72,10 @@ export function dedupliceerGewichtHistorie(...bronnen) {
 }
 
 export function mergeProfielen(lokaal = {}, cloud = {}) {
-  const weightHistory = dedupliceerGewichtHistorie(lokaal.weightHistory || [], cloud.weightHistory || []);
-  const winnaar = kiesNieuwsteGeldige(lokaal, cloud, {
+  const veiligLokaal = isPlainObject(lokaal) ? lokaal : {};
+  const veiligCloud = isPlainObject(cloud) ? cloud : {};
+  const weightHistory = dedupliceerGewichtHistorie(veiligLokaal.weightHistory || [], veiligCloud.weightHistory || []);
+  const winnaar = kiesNieuwsteGeldige(veiligLokaal, veiligCloud, {
     isGeldig: (waarde) => Number(waarde?.currentWeight) > 0 || (waarde?.weightHistory?.length || 0) > 0,
   }) || {};
   const laatste = weightHistory.at(-1)?.value;
@@ -59,15 +84,18 @@ export function mergeProfielen(lokaal = {}, cloud = {}) {
     targetWeight: Number(winnaar.targetWeight) > 0 ? Number(winnaar.targetWeight) : 80,
     weightHistory,
     schemaVersion: CLOUD_SCHEMA_VERSION,
-    updatedAtLocal: new Date(Math.max(entityTimestamp(lokaal), entityTimestamp(cloud), timestampMillis(weightHistory.at(-1)?.date))).toISOString(),
+    updatedAtLocal: new Date(Math.max(entityTimestamp(veiligLokaal), entityTimestamp(veiligCloud), timestampMillis(weightHistory.at(-1)?.date))).toISOString(),
   };
 }
 
 export function mergeHistorieOpId(lokaal = [], cloud = [], verwijderdeIds = new Set()) {
   const perId = new Map();
-  [...lokaal, ...cloud].forEach((training) => {
+  const geldigLokaal = normaliseerSyncObjectArray(lokaal, "lokale historie");
+  const geldigeCloud = normaliseerSyncObjectArray(cloud, "cloudhistorie");
+  const veiligeVerwijderdeIds = verwijderdeIds instanceof Set ? verwijderdeIds : new Set();
+  [...geldigLokaal, ...geldigeCloud].forEach((training) => {
     const id = String(training?.trainingId || training?.id || "");
-    if (!id || verwijderdeIds.has(id)) return;
+    if (!id || veiligeVerwijderdeIds.has(id)) return;
     const bestaand = perId.get(id);
     perId.set(id, bestaand ? kiesNieuwsteGeldige(bestaand, training) : training);
   });
