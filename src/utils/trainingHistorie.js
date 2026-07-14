@@ -1,4 +1,4 @@
-import { TRAINING_SCHEMA_IDS, trainingSchemas, trainingen } from "../data/trainingen.js";
+import { OEFENING_IDS, TRAINING_SCHEMA_IDS, trainingSchemas } from "../data/trainingen.js";
 import { meldLokaleWijziging } from "../sync/localChanges.js";
 
 export const HISTORIE_SCHEMA_VERSION = 1;
@@ -138,6 +138,7 @@ export function normaliseerHistorieItem(item = {}) {
     eindTijd,
     duur,
     oefeningen,
+    oefeningIds: { ...Object.fromEntries(Object.keys(oefeningen).map((naam) => [naam, OEFENING_IDS[naam] || item.oefeningIds?.[naam] || naam])), ...(item.oefeningIds || {}) },
     cardio,
     voltooideSets,
     voltooidAantal,
@@ -213,8 +214,10 @@ function haalHistorieUitContainer(waarde) {
 }
 
 function actieveTrainingNaarHistorie(waarde) {
-  if (!isObject(waarde) || !waarde.training || !trainingen[waarde.training]) return [];
-  const onderdelen = trainingen[waarde.training];
+  if (!isObject(waarde) || !waarde.training) return [];
+  const schema = getTrainingSchema(waarde);
+  if (!schema) return [];
+  const onderdelen = schema.oefeningen;
   const statussen = isObject(waarde.statussen) ? waarde.statussen : {};
   const explicietVoltooid = waarde.isVolledig === true || waarde.status === "Voltooid";
   const alleStatussenVoltooid = onderdelen.every((onderdeel) => statussen[onderdeel] === "Voltooid");

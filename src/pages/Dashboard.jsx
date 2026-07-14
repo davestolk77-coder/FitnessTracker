@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { AppHeader, AppScreen, Card, PrimaryButton, SecondaryButton, SectionCard, StatusBadge } from "../components/ui";
 import { useAuth } from "../auth/authContext";
-import { volgendeTraining } from "../data/trainingen";
+import { VRIJE_TRAINING } from "../data/trainingen";
 import { leesJson } from "../utils/storage";
 import { leesTrainingHistorie } from "../utils/trainingHistorie";
 import { useToast } from "../utils/toastContext";
@@ -41,7 +41,6 @@ function Dashboard({ onStartTraining }) {
   const [historie] = useState(leesTrainingHistorie);
   const geldigeHistorie = historie;
   const laatsteTraining = geldigeHistorie.at(-1) || null;
-  const voorstel = volgendeTraining(laatsteTraining?.training);
   const dezeMaand = geldigeHistorie.filter((item) => {
     const datum = new Date(item?.datum);
     const nu = new Date();
@@ -104,9 +103,9 @@ function Dashboard({ onStartTraining }) {
         <p className={doelBehaald ? "goal-message goal-message--success" : "goal-message"}>{laatsteGewicht === null ? "Sla je gewicht op om je voortgang te volgen." : doelBehaald ? "Geweldig, je doelgewicht is bereikt!" : `Nog ${resterend.toFixed(1)} kg tot je doel`}</p>
       </Card>
 
-      <SectionCard title="Volgende training" description="Op basis van je laatst afgeronde training.">
-        <strong className="next-training-name">{voorstel}</strong>
-        <PrimaryButton className="button--full button--large" icon="▶" onClick={() => onStartTraining(voorstel)}>Start deze training</PrimaryButton>
+      <SectionCard title="Training" description="Kies per sessie zelf welke oefeningen je uitvoert.">
+        <strong className="next-training-name">{VRIJE_TRAINING}</strong>
+        <PrimaryButton className="button--full button--large" icon="▶" onClick={() => onStartTraining(VRIJE_TRAINING)}>Vrije training starten</PrimaryButton>
       </SectionCard>
 
       <SectionCard title="Gewicht bijwerken" description="Voeg een nieuwe meting toe aan je voortgang.">
@@ -120,7 +119,7 @@ function Dashboard({ onStartTraining }) {
       </div>
 
       <SectionCard title="Laatste training" description={laatsteTraining ? new Date(laatsteTraining.datum).toLocaleString("nl-NL") : "Nog geen training afgerond."}>
-        {laatsteTraining ? <div className="last-training"><strong>{laatsteTraining.training || "Training"}</strong><div className="last-training__details">{formatDuur(laatsteTraining.duur) && <span>{formatDuur(laatsteTraining.duur)}</span>}<span>{voltooideOefeningen} {voltooideOefeningen === 1 ? "oefening" : "oefeningen"}</span><span>{voltooideSets} sets</span></div></div> : <p className="muted-text">Start Training A om je eerste resultaat vast te leggen.</p>}
+        {laatsteTraining ? <div className="last-training"><strong>{laatsteTraining.training || "Training"}</strong><div className="last-training__details">{formatDuur(laatsteTraining.duur) && <span>{formatDuur(laatsteTraining.duur)}</span>}<span>{voltooideOefeningen} {voltooideOefeningen === 1 ? "oefening" : "oefeningen"}</span><span>{voltooideSets} sets</span></div></div> : <p className="muted-text">Start een vrije training om je eerste resultaat vast te leggen.</p>}
       </SectionCard>
 
       <small className="dashboard-version">FitnessTracker v{APP_VERSION}</small>

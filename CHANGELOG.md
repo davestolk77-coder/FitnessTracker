@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.8.0 - 2026-07-14
+
+- Training A en B zijn samengevoegd tot één vrije training met elf unieke oefeningen.
+- Afronden kan vanaf één opgeslagen oefening; niet-uitgevoerde oefeningen worden niet opgeslagen.
+- Actieve oude A/B-sessies migreren veilig met behoud van invoer, status en sessie-ID.
+- Historische A/B-trainingen en schema-ID's blijven leesbaar; stabiele oefening-ID's bewaren de koppeling met records en laatste waarden.
+- De bestaande verliesvrije cloudmerge blijft behouden.
+
 ## 0.7.9 - 2026-07-14
 
 - Firebase Auth initialiseert nu naast lokale persistentie ook expliciet de browser popup/redirectresolver, zodat Google-login op iPhone, Safari en geïnstalleerde PWA's weer kan starten.

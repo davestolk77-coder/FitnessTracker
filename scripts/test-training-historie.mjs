@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { trainingen } from "../src/data/trainingen.js";
+import { TRAINING_A, trainingSchemas } from "../src/data/trainingen.js";
 import * as historieApi from "../src/utils/trainingHistorie.js";
 
 class MemoryStorage {
@@ -20,7 +20,7 @@ class MemoryStorage {
   }
 }
 
-const trainingsnaam = Object.keys(trainingen)[0];
+const trainingsnaam = TRAINING_A;
 const maakItem = (id, datum, gewicht = "50") => ({
   trainingId: id,
   training: trainingsnaam,
@@ -76,7 +76,7 @@ for (const [sleutel, waarde] of Object.entries(legacyBronnen)) {
   assert.equal(historieApi.leesTrainingHistorie().length, 1, `legacy-bron ${sleutel} moet herstellen`);
 }
 
-const volledigeStatussen = Object.fromEntries(trainingen[trainingsnaam].map((oefening) => [oefening, "Voltooid"]));
+const volledigeStatussen = Object.fromEntries(trainingSchemas["training-a"].oefeningen.map((oefening) => [oefening, "Voltooid"]));
 globalThis.localStorage = new MemoryStorage({
   actieveTraining: JSON.stringify({ trainingId: "actief-afgerond", training: trainingsnaam, startTijd: 1760000000000, statussen: volledigeStatussen, gegevens: { "Chest Press": { 1: { gewicht: "55", reps: "8" } } }, cardio: { type: "Fiets", tijd: "10" } }),
 });

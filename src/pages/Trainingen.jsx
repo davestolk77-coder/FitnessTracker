@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { TRAINING_SCHEMA_IDS, trainingen } from "../data/trainingen";
+import { OEFENING_IDS, TRAINING_SCHEMA_IDS, VRIJE_TRAINING, migreerActieveSessieNaarVrijeTraining, trainingen } from "../data/trainingen";
 import CardioForm from "../components/CardioForm";
 import { StopTrainingModal } from "../components/StopTrainingModal";
 import { AppHeader, AppScreen, Card, PrimaryButton, SecondaryButton, StatusBadge } from "../components/ui";
@@ -9,18 +9,19 @@ import { useToast } from "../utils/toastContext";
 import { ACTIEVE_TRAINING_KEY, bewaarActieveTraining, verwijderActieveTraining } from "../sync/localCache";
 import { useCloudSync } from "../sync/syncContext";
 import { maakEenmaligeUitvoerder } from "../utils/eenmaligeUitvoerder";
+import { maakTrainingResultaat } from "../utils/trainingSession";
 
 const SETS = [1, 2, 3];
 const huidigTijdstip = () => Date.now();
 
-function nieuweSessie(training) {
+function nieuweSessie(training = VRIJE_TRAINING) {
   const sessionId = maakNieuweTrainingId();
-  return { trainingId: sessionId, sessionId, trainingSchemaId: TRAINING_SCHEMA_IDS[training], training, gegevens: {}, cardio: {}, statussen: {}, voltooideSets: [], timer: 0, startTijd: huidigTijdstip(), status: "Actief" };
+  return { trainingId: sessionId, sessionId, trainingSchemaId: TRAINING_SCHEMA_IDS[training], training, oefeningIds: Object.fromEntries(trainingen[training].map((naam) => [naam, OEFENING_IDS[naam]])), gegevens: {}, cardio: {}, statussen: {}, voltooideSets: [], timer: 0, startTijd: huidigTijdstip(), status: "Actief" };
 }
 
 function herstelSessie(initialTraining) {
-  if (initialTraining && trainingen[initialTraining]) return nieuweSessie(initialTraining);
-  const opgeslagen = leesJson(ACTIEVE_TRAINING_KEY, null);
+  if (initialTraining && TRAINING_SCHEMA_IDS[initialTraining]) return nieuweSessie(VRIJE_TRAINING);
+  const opgeslagen = migreerActieveSessieNaarVrijeTraining(leesJson(ACTIEVE_TRAINING_KEY, null));
   if (!opgeslagen || !trainingen[opgeslagen.training]) return null;
   return {
     ...nieuweSessie(opgeslagen.training),
@@ -151,35 +152,8 @@ function Trainingen({ initialTraining, onTrainingClosed }) {
   const trainingDefinitiefOpslaan = async () => {
     if (bezigMetAfronden.current) return;
     bezigMetAfronden.current = true;
-    const onderdelen = trainingen[sessie.training];
-    const voltooideOnderdelen = onderdelen.filter((oefening) => sessie.statussen[oefening] === "Voltooid");
-    const voltooideKrachtoefeningen = voltooideOnderdelen.filter((oefening) => oefening !== "Cardio");
-    const opgeslagenOefeningen = Object.fromEntries(
-      voltooideKrachtoefeningen.map((oefening) => [oefening, sessie.gegevens[oefening] || {}]),
-    );
-    const voltooideSets = voltooideKrachtoefeningen.reduce(
-      (totaal, oefening) => totaal + SETS.filter((setNummer) => sessie.voltooideSets.includes(`${oefening}-${setNummer}`)).length,
-      0,
-    );
     const eindTijd = huidigTijdstip();
-    const duur = Math.max(1, Math.round((eindTijd - sessie.startTijd) / 1000));
-    const trainingData = {
-      trainingId: sessie.trainingId,
-      trainingSchemaId: sessie.trainingSchemaId || TRAINING_SCHEMA_IDS[sessie.training],
-      datum: new Date(eindTijd).toISOString(),
-      training: sessie.training,
-      startTijd: sessie.startTijd,
-      eindTijd,
-      oefeningen: opgeslagenOefeningen,
-      cardio: voltooideOnderdelen.includes("Cardio") ? sessie.cardio : {},
-      duur,
-      voltooideSets,
-      voltooidAantal: voltooideOnderdelen.length,
-      voltooideOefeningen: voltooideOnderdelen.length,
-      totaalOefeningen: onderdelen.length,
-      isVolledig: voltooideOnderdelen.length === onderdelen.length,
-      status: voltooideOnderdelen.length === onderdelen.length ? "Voltooid" : "Gedeeltelijk",
-    };
+    const trainingData = maakTrainingResultaat(sessie, eindTijd);
     try {
       const opgeslagen = voegTrainingToe(trainingData, { meldSync: false });
       await voltooiTraining(opgeslagen.training, sessie);
@@ -205,7 +179,7 @@ function Trainingen({ initialTraining, onTrainingClosed }) {
     setBevestigOnvolledig(true);
   };
 
-  if (!sessie) return <AppScreen><AppHeader eyebrow="Aan de slag" title="Kies je training" subtitle="Twee complete trainingen, ieder met zes onderdelen." />{Object.keys(trainingen).map((naam) => <SecondaryButton key={naam} className="training-choice" icon="◆" onClick={() => kiesTraining(naam)}>{naam}<span aria-hidden="true">›</span></SecondaryButton>)}</AppScreen>;
+  if (!sessie) return <AppScreen><AppHeader eyebrow="Aan de slag" title={VRIJE_TRAINING} subtitle="Kies zelf welke oefeningen je vandaag uitvoert." /><PrimaryButton className="button--full button--large" onClick={() => kiesTraining(VRIJE_TRAINING)}>Vrije training starten</PrimaryButton></AppScreen>;
 
   const onderdelen = trainingen[sessie.training];
   const aantalVoltooid = onderdelen.filter((oefening) => sessie.statussen[oefening] === "Voltooid").length;
