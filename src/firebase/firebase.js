@@ -1,5 +1,10 @@
 import { initializeApp } from "firebase/app";
-import { browserLocalPersistence, GoogleAuthProvider, initializeAuth } from "firebase/auth";
+import {
+  browserLocalPersistence,
+  browserPopupRedirectResolver,
+  GoogleAuthProvider,
+  initializeAuth,
+} from "firebase/auth";
 import {
   getFirestore,
   initializeFirestore,
@@ -7,7 +12,7 @@ import {
   persistentMultipleTabManager,
 } from "firebase/firestore";
 
-const firebaseConfig = {
+export const firebaseConfig = {
   apiKey: "AIzaSyDyDYl1NJ3T2GWTSop9b66GH7NrMiF7wsY",
   authDomain: "fitness-tracker-iota-ashy.vercel.app",
   projectId: "fitnesstracker-a4b97",
@@ -19,6 +24,7 @@ const firebaseConfig = {
 export const app = initializeApp(firebaseConfig);
 export const auth = initializeAuth(app, {
   persistence: browserLocalPersistence,
+  popupRedirectResolver: browserPopupRedirectResolver,
 });
 initializeFirestore(app, {
   localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),

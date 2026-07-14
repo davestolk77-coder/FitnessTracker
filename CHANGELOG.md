@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.9 - 2026-07-14
+
+- Firebase Auth initialiseert nu naast lokale persistentie ook expliciet de browser popup/redirectresolver, zodat Google-login op iPhone, Safari en geïnstalleerde PWA's weer kan starten.
+- Het same-origin Vercel-authdomein blijft behouden omdat `/__/auth/*` aantoonbaar naar het echte Firebase Auth-domein wordt geproxyd.
+- Login- en redirectresultaatfouten tonen voortaan hun Firebase-foutcode; developmentdiagnostiek bevat daarnaast fase, methode, origin, authDomain, message en customData.
+- De authregressietest controleert unieke initialisatie, persistence, redirectresolver, redirect-start, redirect-resultaat, Vercel-rewrite en foutafhandeling zonder generieke masking.
+
 ## 0.7.8 - 2026-07-14
 
 - Het Dashboard toont onderaan een kleine, gecentreerde versie-indicator.

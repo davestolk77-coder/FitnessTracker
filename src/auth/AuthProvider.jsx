@@ -8,12 +8,14 @@ import {
   signInWithRedirect,
   signOut,
 } from "firebase/auth";
-import { auth, googleProvider } from "../firebase/firebase";
+import { auth, firebaseConfig, googleProvider } from "../firebase/firebase";
 import { useToast } from "../utils/toastContext";
 import { AuthContext } from "./authContext";
 import {
   kiesGoogleLoginMethode,
+  maakAuthDiagnose,
   maakEenmaligeAsyncTaak,
+  voegFirebaseFoutcodeToe,
   wachtOpAuthInitialisatie,
 } from "./authStrategy";
 
@@ -23,18 +25,37 @@ const GEANNULEERDE_POPUP_CODES = new Set([
 ]);
 
 function foutmeldingVoor(error) {
+  let bericht;
   switch (error?.code) {
     case "auth/unauthorized-domain":
-      return "Inloggen is voor dit domein nog niet toegestaan in Firebase.";
+      bericht = "Inloggen is voor dit domein nog niet toegestaan in Firebase.";
+      break;
     case "auth/operation-not-allowed":
-      return "Google-inloggen is nog niet ingeschakeld in Firebase.";
+      bericht = "Google-inloggen is nog niet ingeschakeld in Firebase.";
+      break;
+    case "auth/operation-not-supported-in-this-environment":
+      bericht = "Deze browser kan de huidige Google-loginmethode niet starten.";
+      break;
     case "auth/network-request-failed":
-      return "Inloggen lukt niet door een netwerkprobleem. Probeer het opnieuw.";
+      bericht = "Inloggen lukt niet door een netwerkprobleem. Probeer het opnieuw.";
+      break;
     case "auth/account-exists-with-different-credential":
-      return "Voor dit e-mailadres bestaat al een account met een andere inlogmethode.";
+      bericht = "Voor dit e-mailadres bestaat al een account met een andere inlogmethode.";
+      break;
     default:
-      return "Inloggen met Google is niet gelukt. Probeer het opnieuw.";
+      bericht = "Inloggen met Google is niet gelukt. Probeer het opnieuw.";
   }
+  return voegFirebaseFoutcodeToe(bericht, error);
+}
+
+function logAuthFout(fase, error, methode) {
+  if (!import.meta.env.DEV) return;
+  console.error("[Firebase Auth]", maakAuthDiagnose(error, {
+    fase,
+    methode,
+    origin: globalThis.location?.origin || "onbekend",
+    authDomain: firebaseConfig.authDomain,
+  }));
 }
 
 const bereidAuthenticatieVoor = maakEenmaligeAsyncTaak(async () => {
@@ -52,6 +73,7 @@ const bereidAuthenticatieVoor = maakEenmaligeAsyncTaak(async () => {
     redirectResultaat = await getRedirectResult(auth);
   } catch (error) {
     redirectFout = error;
+    logAuthFout("redirect-resultaat", error, "redirect");
   }
 
   return { persistentieFout, redirectFout, redirectResultaat };
@@ -138,10 +160,11 @@ export function AuthProvider({ children }) {
     setActieBezig(true);
     setAuthError("");
 
+    const methode = kiesGoogleLoginMethode();
     try {
       await setPersistence(auth, browserLocalPersistence);
 
-      if (kiesGoogleLoginMethode() === "redirect") {
+      if (methode === "redirect") {
         await signInWithRedirect(auth, googleProvider);
         return;
       }
@@ -157,6 +180,7 @@ export function AuthProvider({ children }) {
       }
     } catch (error) {
       if (GEANNULEERDE_POPUP_CODES.has(error?.code)) return;
+      logAuthFout("login-start", error, methode);
       const bericht = foutmeldingVoor(error);
       setAuthError(bericht);
       showToast(bericht, "error");

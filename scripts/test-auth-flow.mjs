@@ -1,8 +1,12 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import {
+  firebaseAuthFoutcode,
   isIOSOfIPadOS,
   kiesGoogleLoginMethode,
+  maakAuthDiagnose,
   maakEenmaligeAsyncTaak,
+  voegFirebaseFoutcodeToe,
   wachtOpAuthInitialisatie,
 } from "../src/auth/authStrategy.js";
 
@@ -61,5 +65,29 @@ assert.equal(voltooid, false, "auth loading moet actief blijven zolang redirecta
 rondRedirectAf(null);
 await initialisatie;
 assert.equal(voltooid, true, "auth loading mag stoppen zodra beide initialisatiestappen gereed zijn");
+
+const firebaseBron = await readFile(new URL("../src/firebase/firebase.js", import.meta.url), "utf8");
+const authProviderBron = await readFile(new URL("../src/auth/AuthProvider.jsx", import.meta.url), "utf8");
+const vercelConfig = JSON.parse(await readFile(new URL("../vercel.json", import.meta.url), "utf8"));
+assert.equal((firebaseBron.match(/initializeAuth\s*\(/g) || []).length, 1, "Firebase Auth moet exact eenmaal worden geïnitialiseerd");
+assert.doesNotMatch(firebaseBron, /\bgetAuth\s*\(/, "getAuth mag niet vóór of naast initializeAuth worden aangeroepen");
+assert.match(firebaseBron, /persistence:\s*browserLocalPersistence/, "lokale persistentie moet bij initialisatie zijn ingesteld");
+assert.match(firebaseBron, /popupRedirectResolver:\s*browserPopupRedirectResolver/, "popup- en redirectflows vereisen de browserresolver");
+assert.match(authProviderBron, /signInWithRedirect\(auth, googleProvider\)/, "mobiele login moet de redirectflow starten");
+assert.match(authProviderBron, /getRedirectResult\(auth\)/, "het redirectresultaat moet bij appstart worden verwerkt");
+assert.ok(vercelConfig.rewrites.some((rewrite) => rewrite.source === "/__/auth/:path*" && rewrite.destination.includes("fitnesstracker-a4b97.firebaseapp.com/__/auth/")), "Vercel moet Firebase Auth-helperroutes same-origin proxyen");
+
+const firebaseFout = { code: "auth/operation-not-supported-in-this-environment", message: "resolver ontbreekt", customData: { appName: "[DEFAULT]" } };
+assert.equal(firebaseAuthFoutcode(firebaseFout), firebaseFout.code);
+assert.match(voegFirebaseFoutcodeToe("Inloggen mislukt", firebaseFout), /auth\/operation-not-supported-in-this-environment/, "de UI-fout mag de Firebase-code niet maskeren");
+assert.deepEqual(maakAuthDiagnose(firebaseFout, { origin: "https://fitness-tracker-iota-ashy.vercel.app", authDomain: "fitness-tracker-iota-ashy.vercel.app", methode: "redirect", fase: "login-start" }), {
+  fase: "login-start",
+  methode: "redirect",
+  code: firebaseFout.code,
+  message: firebaseFout.message,
+  customData: firebaseFout.customData,
+  origin: "https://fitness-tracker-iota-ashy.vercel.app",
+  authDomain: "fitness-tracker-iota-ashy.vercel.app",
+});
 
 console.log("Alle authstrategie- en eenmalige redirecttests zijn geslaagd.");

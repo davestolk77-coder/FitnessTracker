@@ -31,3 +31,23 @@ export function maakEenmaligeAsyncTaak(taak) {
 export function wachtOpAuthInitialisatie(redirectAfhandeling, eersteAuthState) {
   return Promise.all([redirectAfhandeling, eersteAuthState]);
 }
+
+export function firebaseAuthFoutcode(error) {
+  return typeof error?.code === "string" && error.code ? error.code : "auth/unknown";
+}
+
+export function voegFirebaseFoutcodeToe(bericht, error) {
+  return `${bericht} (${firebaseAuthFoutcode(error)})`;
+}
+
+export function maakAuthDiagnose(error, { origin = "onbekend", authDomain = "onbekend", methode = "onbekend", fase = "onbekend" } = {}) {
+  return {
+    fase,
+    methode,
+    code: firebaseAuthFoutcode(error),
+    message: error?.message || "Onbekende Firebase Auth-fout",
+    customData: error?.customData || null,
+    origin,
+    authDomain,
+  };
+}
