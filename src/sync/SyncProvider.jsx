@@ -38,6 +38,7 @@ export function SyncProvider({ children }) {
   const [blockingError, setBlockingError] = useState("");
   const activeTimer = useRef(null);
   const pendingRef = useRef(false);
+  const gereedVoorUidRef = useRef(null);
 
   const voerUit = useCallback(async (actie, { stil = false } = {}) => {
     if (!uid) return null;
@@ -67,7 +68,8 @@ export function SyncProvider({ children }) {
     let stopListeners = () => {};
     let stopWijzigingen = () => {};
     const initialiseer = async () => {
-      setReady(false);
+      const isEersteInitialisatieVoorUid = gereedVoorUidRef.current !== uid;
+      if (isEersteInitialisatieVoorUid) setReady(false);
       setBlockingError("");
       try {
         controleerLokaleDataEigenaar(uid);
@@ -87,6 +89,7 @@ export function SyncProvider({ children }) {
           onData: () => setStatus("idle"),
           onError: () => setStatus(navigator.onLine ? "error" : "offline"),
         });
+        gereedVoorUidRef.current = uid;
         setReady(true);
         setStatus("idle");
         if (resultaat) showToast(`Cloudmigratie afgerond: ${resultaat.trainingen} training(en) veilig gesynchroniseerd`, "success");
@@ -130,8 +133,8 @@ export function SyncProvider({ children }) {
 
     stopWijzigingen = volgLokaleWijzigingen(verwerkWijziging);
     const bijOnline = () => {
-      const actie = pendingRef.current ? () => syncAlleLokaleData(uid) : initialiseer;
-      voerUit(actie, { stil: true }).catch(() => {});
+      pendingRef.current = true;
+      voerUit(() => syncAlleLokaleData(uid), { stil: true }).catch(() => {});
     };
     const bijOffline = () => setStatus("offline");
     window.addEventListener("online", bijOnline);

@@ -179,6 +179,11 @@
 .confirmation-dialog p { margin: 0; color: var(--text-secondary); line-height: 1.55; }
 .confirmation-dialog .confirmation-dialog__error { color: #fca5a5; font-weight: 700; }
 .confirmation-dialog__actions { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; }
+.stop-training-backdrop { padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); }
+.stop-training-dialog { max-height: calc(100dvh - max(32px, env(safe-area-inset-top)) - max(32px, env(safe-area-inset-bottom))); overflow-x: hidden; overflow-y: auto; }
+.stop-training-dialog__copy { display: grid; gap: 4px; }
+.stop-training-dialog .button--danger { color: #fff; background: var(--danger); border-color: #f87171; }
+.stop-training-dialog .button--danger:hover { background: #dc2626; }
 @media (max-width: 430px) {
   .form-row { flex-direction: column; }
   .form-row .button { width: 100%; }

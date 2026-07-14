@@ -1,7 +1,7 @@
 {
   "name": "fitnesstracker",
   "private": true,
-  "version": "0.7.3",
+  "version": "0.7.7",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,6 +10,9 @@
     "test:storage": "node scripts/test-training-historie.mjs",
     "test:cloud-sync": "node scripts/test-cloud-sync.mjs",
     "test:auth": "node scripts/test-auth-flow.mjs",
+    "test:stop-modal": "node scripts/test-stop-training-modal.mjs",
+    "test:active-exercise-sync": "node scripts/test-active-exercise-sync.mjs",
+    "test:interaction": "vitest run src/pages/Trainingen.interaction.test.jsx",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -20,6 +23,8 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
@@ -27,7 +32,9 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.6.0",
+    "jsdom": "^29.1.1",
     "vite": "^8.0.12",
-    "vite-plugin-pwa": "^1.3.0"
+    "vite-plugin-pwa": "^1.3.0",
+    "vitest": "^4.1.10"
   }
 }

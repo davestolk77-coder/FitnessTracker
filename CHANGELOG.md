@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.7.7 - 2026-07-14
+
+- De browser-`online`-afhandeling start geen volledige cloudinitialisatie met blokkerende sync-gate meer tijdens een actieve training.
+- `SyncProvider` kan daardoor `Trainingen` en het geopende oefeningformulier niet meer unmounten wanneer de verbinding tijdens een debounced autosave beschikbaar wordt.
+- Herstel na een `online`-event voert uitsluitend een niet-blokkerende volledige datasynchronisatie uit; alleen de eerste initialisatie van een account mag de sync-gate tonen.
+- Een DOM-interactietest met echte React-componenten en fake timers controleert invoer, debounce, online-sync, zichtbaarheid van het formulier en behoud van getypte waarden.
+
+## 0.7.6 - 2026-07-14
+
+- Een geopende oefening blijft geopend tijdens autosave, debounce, Firestore-sync en gewone re-renders.
+- Actieve cloudupdates vervangen de lokale React-sessie niet meer via `DATA_GESYNCHRONISEERD_EVENT`; navigatiestate blijft uitsluitend onder gebruikerscontrole.
+- Firestore-bevestigingen van dezelfde of een oudere `syncGeneration` kunnen nieuwere lokale invoer niet meer overschrijven.
+- Een regressietest bewaakt dat oefeningselectie en getypte waarden behouden blijven wanneer de debounced sync wordt afgehandeld.
+
+## 0.7.5 - 2026-07-14
+
+- Firebase Authentication initialiseert voortaan direct met lokale browserpersistentie, voordat de eerste authstatus wordt uitgelezen.
+- Een geldige Google-sessie blijft daardoor behouden na verversen, browserherstart en opnieuw openen van de PWA, totdat de gebruiker expliciet uitlogt.
+- Cloudupdates remounten de actieve trainingspagina niet meer en wissen daardoor de geselecteerde oefening niet.
+- Een gewijzigde actieve training uit Firestore wordt binnen de bestaande trainingspagina verwerkt, zonder automatische navigatie naar het oefeningenoverzicht.
+
+## 0.7.4 - 2026-07-13
+
+- De browserdialoog voor het stoppen van een actieve training is vervangen door een eigen toegankelijke bevestigingsmodal.
+- De stopmodal sluit visueel aan op de donkere interface en ondersteunt iOS/PWA-safe-areas, focusbeheer en scrollvergrendeling.
+- De bestaande lokale verwijdering en Firebase-tombstonesynchronisatie zijn inhoudelijk ongewijzigd gebleven.
+
 ## 0.7.3 - 2026-07-13
 
 - Firebase redirect-auth gebruikt het vaste Vercel-productiedomein als same-origin `authDomain`.

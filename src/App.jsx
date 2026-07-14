@@ -42,7 +42,7 @@ function App() {
 
   const pages = {
     dashboard: <Dashboard key={`dashboard-${dataRevision}`} onStartTraining={startTraining} />,
-    trainingen: <Trainingen key={`trainingen-${dataRevision}`} initialTraining={directeTraining} onTrainingClosed={() => setDirecteTraining(null)} />,
+    trainingen: <Trainingen initialTraining={directeTraining} onTrainingClosed={() => setDirecteTraining(null)} />,
     historie: <Historie key={`historie-${dataRevision}`} />,
     records: <Records key={`records-${dataRevision}`} />,
     voortgang: <Voortgang key={`voortgang-${dataRevision}`} />,

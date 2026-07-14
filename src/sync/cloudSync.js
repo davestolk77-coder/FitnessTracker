@@ -37,6 +37,7 @@ import {
   timestampMillis,
 } from "./syncModel";
 import { isZelfdeOperation, logCloudOperatie, maakCloudOperatie } from "./syncIdentity";
+import { moetCloudActieveTrainingToepassen } from "./activeTrainingConflict";
 
 const DOELGEWICHT = 80;
 
@@ -436,7 +437,9 @@ export function startCloudListeners(uid, { onData, onError } = {}) {
     if (!snapshot.exists()) return;
     const cloud = cloudActiveNaarLokaal(snapshot.data());
     const lokaal = leesActieveTraining();
-    if (!lokaal || entityTimestamp(cloud) > entityTimestamp(lokaal)) {
+    if (moetCloudActieveTrainingToepassen(lokaal, cloud, {
+      cloudIsNieuwer: entityTimestamp(cloud) > entityTimestamp(lokaal),
+    })) {
       bewaarActieveTraining(cloud, { notify: false, verhoogGeneratie: false });
       bewaarUidCache(uid);
       meldCloudDataToegepast();

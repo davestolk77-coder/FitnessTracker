@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { TRAINING_SCHEMA_IDS, trainingen } from "../data/trainingen";
 import CardioForm from "../components/CardioForm";
+import { StopTrainingModal } from "../components/StopTrainingModal";
 import { AppHeader, AppScreen, Card, PrimaryButton, SecondaryButton, StatusBadge } from "../components/ui";
 import { leesJson } from "../utils/storage";
 import { leesTrainingHistorie, maakNieuweTrainingId, voegTrainingToe, vindLaatsteOefeningWaarden } from "../utils/trainingHistorie";
 import { useToast } from "../utils/toastContext";
 import { ACTIEVE_TRAINING_KEY, bewaarActieveTraining, verwijderActieveTraining } from "../sync/localCache";
 import { useCloudSync } from "../sync/syncContext";
+import { maakEenmaligeUitvoerder } from "../utils/eenmaligeUitvoerder";
 
 const SETS = [1, 2, 3];
 const huidigTijdstip = () => Date.now();
@@ -36,7 +38,11 @@ function Trainingen({ initialTraining, onTrainingClosed }) {
   const [sessie, setSessie] = useState(() => herstelSessie(initialTraining));
   const [geselecteerd, setGeselecteerd] = useState(null);
   const [bevestigOnvolledig, setBevestigOnvolledig] = useState(false);
+  const [bevestigStoppen, setBevestigStoppen] = useState(false);
+  const [bezigMetStoppen, setBezigMetStoppen] = useState(false);
   const bezigMetAfronden = useRef(false);
+  const stopKnop = useRef(null);
+  const voerStoppenEenmaligUit = useRef(maakEenmaligeUitvoerder());
 
   const historie = leesTrainingHistorie;
 
@@ -73,9 +79,23 @@ function Trainingen({ initialTraining, onTrainingClosed }) {
     setGeselecteerd(null);
   };
 
-  const stopTraining = () => {
-    if (!confirm("Training stoppen? De actieve trainingsgegevens worden verwijderd.")) return;
-    verwijderActieveTraining({ sessie });
+  const stopTraining = async () => {
+    try {
+      const uitgevoerd = await voerStoppenEenmaligUit.current(async () => {
+        setBezigMetStoppen(true);
+        await Promise.resolve();
+        verwijderActieveTraining({ sessie });
+      });
+      if (!uitgevoerd) return;
+    } catch (error) {
+      console.error("Training stoppen mislukt", error);
+      setBezigMetStoppen(false);
+      showToast("Training stoppen is niet gelukt. Je actieve training is behouden; probeer het opnieuw.", "error");
+      return;
+    }
+
+    setBevestigStoppen(false);
+    setBezigMetStoppen(false);
     setSessie(null);
     setGeselecteerd(null);
     onTrainingClosed();
@@ -192,7 +212,7 @@ function Trainingen({ initialTraining, onTrainingClosed }) {
 
   if (!geselecteerd) return (
     <AppScreen className="active-workout">
-      <SecondaryButton className="back-button button--compact" icon="←" onClick={stopTraining}>Stop training</SecondaryButton>
+      <SecondaryButton ref={stopKnop} className="back-button button--compact" icon="←" onClick={() => setBevestigStoppen(true)}>Stop training</SecondaryButton>
       <AppHeader eyebrow="Actieve training" title={sessie.training} subtitle={`${aantalVoltooid} van ${onderdelen.length} oefeningen voltooid`} />
       <div className="workout-progress" role="progressbar" aria-label="Voltooide oefeningen" aria-valuemin="0" aria-valuemax={onderdelen.length} aria-valuenow={aantalVoltooid}><span style={{ width: `${(aantalVoltooid / onderdelen.length) * 100}%` }} /></div>
       <div className="exercise-overview">{onderdelen.map((oefening) => {
@@ -202,6 +222,14 @@ function Trainingen({ initialTraining, onTrainingClosed }) {
       })}</div>
       <PrimaryButton className="button--full button--large" icon="✓" disabled={aantalVoltooid === 0} onClick={trainingOpslaan}>Training afronden</PrimaryButton>
       {aantalVoltooid === 0 && <p className="finish-hint">Sla minimaal één oefening op om de training af te ronden.</p>}
+      {bevestigStoppen && (
+        <StopTrainingModal
+          bezig={bezigMetStoppen}
+          triggerRef={stopKnop}
+          onDoorgaan={() => { if (!bezigMetStoppen) setBevestigStoppen(false); }}
+          onStoppen={stopTraining}
+        />
+      )}
       {bevestigOnvolledig && (
         <div className="confirmation-backdrop" role="presentation" onMouseDown={(event) => {
           if (event.target === event.currentTarget) setBevestigOnvolledig(false);
