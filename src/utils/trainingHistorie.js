@@ -105,6 +105,23 @@ function isMogelijkHistorieItem(item) {
   return isObject(item);
 }
 
+function tijdstipVanTraining(training) {
+  const waarde = training.eindTijd ?? training.datum ?? training.startTijd;
+  const alsGetal = Number(waarde);
+  if (Number.isFinite(alsGetal) && alsGetal > 0) return alsGetal;
+  const alsDatum = new Date(waarde).getTime();
+  return Number.isFinite(alsDatum) ? alsDatum : 0;
+}
+
+function heeftOpgeslagenSetwaarden(sets) {
+  return isObject(sets) && Object.values(sets).some((setData) => isObject(setData)
+    && Object.values(setData).some(isGevuld));
+}
+
+function oefeningIdVoor(training, naam) {
+  return training.oefeningIds?.[naam] || OEFENING_IDS[naam] || naam;
+}
+
 export function normaliseerHistorieItem(item = {}) {
   const trainingsnaam = item.training || item.trainingsnaam || item.workoutName || item.naam || "Training";
   const datum = item.datum || item.date || item.eindTijd || item.endTime || null;
@@ -269,23 +286,34 @@ export function leesTrainingHistorie() {
 }
 
 export function berekenPersoonlijkeRecords(historie) {
-  const records = {};
+  const recordsPerId = {};
+  const namenPerId = {};
   normaliseerTrainingHistorie(historie).forEach((training) => Object.entries(training.oefeningen).forEach(([oefening, sets]) => {
+    const oefeningId = oefeningIdVoor(training, oefening);
+    namenPerId[oefeningId] = namenPerId[oefeningId] || oefening;
     Object.values(sets).forEach((setData) => {
       const gewicht = Number(setData?.gewicht || 0);
-      if (Number.isFinite(gewicht) && gewicht > (records[oefening] || 0)) records[oefening] = gewicht;
+      if (Number.isFinite(gewicht) && gewicht > (recordsPerId[oefeningId] || 0)) recordsPerId[oefeningId] = gewicht;
     });
   }));
-  return records;
+  return Object.fromEntries(Object.entries(recordsPerId).map(([id, gewicht]) => [namenPerId[id], gewicht]));
 }
 
 export function vindLaatsteOefeningWaarden(historie, oefening) {
-  const geldigeHistorie = normaliseerTrainingHistorie(historie);
-  for (let index = geldigeHistorie.length - 1; index >= 0; index -= 1) {
-    const waarden = geldigeHistorie[index].oefeningen[oefening];
-    if (isObject(waarden)) return waarden;
-  }
-  return null;
+  const gezochteId = OEFENING_IDS[oefening] || oefening;
+  const kandidaten = normaliseerTrainingHistorie(historie).flatMap((training) => Object.entries(training.oefeningen)
+    .filter(([naam, sets]) => oefeningIdVoor(training, naam) === gezochteId && heeftOpgeslagenSetwaarden(sets))
+    .map(([, waarden]) => ({ waarden, tijdstip: tijdstipVanTraining(training) })));
+  kandidaten.sort((a, b) => b.tijdstip - a.tijdstip);
+  return kandidaten[0]?.waarden || null;
+}
+
+export function vindLaatsteCardioWaarden(historie) {
+  const kandidaten = normaliseerTrainingHistorie(historie)
+    .filter(heeftCardio)
+    .map((training) => ({ waarden: training.cardio, tijdstip: tijdstipVanTraining(training) }))
+    .sort((a, b) => b.tijdstip - a.tijdstip);
+  return kandidaten[0]?.waarden || null;
 }
 
 export function maakKrachtGrafiekData(historie, oefening) {

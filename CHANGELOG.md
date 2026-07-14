@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.1 - 2026-07-14
+
+- Vrije training laadt bij het openen automatisch de chronologisch nieuwste opgeslagen oefeningwaarden uit Training A, Training B of Vrije training.
+- De koppeling gebruikt stabiele oefening-ID's en negeert schema- en trainingsnamen, lege/niet-opgeslagen oefeningdata en de volgorde van historie-items.
+- Cardio gebruikt dezelfde historiebrede koppeling; records blijven eveneens over alle oude en nieuwe schema's berekend.
+
 ## 0.8.0 - 2026-07-14
 
 - Training A en B zijn samengevoegd tot één vrije training met elf unieke oefeningen.

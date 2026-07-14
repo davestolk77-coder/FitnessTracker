@@ -4,7 +4,7 @@ import CardioForm from "../components/CardioForm";
 import { StopTrainingModal } from "../components/StopTrainingModal";
 import { AppHeader, AppScreen, Card, PrimaryButton, SecondaryButton, StatusBadge } from "../components/ui";
 import { leesJson } from "../utils/storage";
-import { leesTrainingHistorie, maakNieuweTrainingId, voegTrainingToe, vindLaatsteOefeningWaarden } from "../utils/trainingHistorie";
+import { berekenPersoonlijkeRecords, leesTrainingHistorie, maakNieuweTrainingId, voegTrainingToe, vindLaatsteCardioWaarden, vindLaatsteOefeningWaarden } from "../utils/trainingHistorie";
 import { useToast } from "../utils/toastContext";
 import { ACTIEVE_TRAINING_KEY, bewaarActieveTraining, verwijderActieveTraining } from "../sync/localCache";
 import { useCloudSync } from "../sync/syncContext";
@@ -103,18 +103,26 @@ function Trainingen({ initialTraining, onTrainingClosed }) {
   };
 
   const openOefening = (oefening) => {
-    setSessie((vorige) => ({ ...vorige, statussen: { ...vorige.statussen, [oefening]: vorige.statussen[oefening] === "Voltooid" ? "Voltooid" : "Bezig" } }));
+    setSessie((vorige) => {
+      const heeftSessieWaarden = oefening === "Cardio"
+        ? Object.keys(vorige.cardio || {}).length > 0
+        : Object.keys(vorige.gegevens?.[oefening] || {}).length > 0;
+      const laatsteWaarden = heeftSessieWaarden ? null : oefening === "Cardio"
+        ? vindLaatsteCardioWaarden(historie())
+        : vindLaatsteOefeningWaarden(historie(), OEFENING_IDS[oefening]);
+      return {
+        ...vorige,
+        ...(oefening === "Cardio" && laatsteWaarden ? { cardio: { ...laatsteWaarden } } : {}),
+        ...(oefening !== "Cardio" && laatsteWaarden ? { gegevens: { ...vorige.gegevens, [oefening]: laatsteWaarden } } : {}),
+        statussen: { ...vorige.statussen, [oefening]: vorige.statussen[oefening] === "Voltooid" ? "Voltooid" : "Bezig" },
+      };
+    });
     setGeselecteerd(oefening);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const haalVorigeSetOp = (oefening, setNummer) => {
-    const items = historie();
-    for (let i = items.length - 1; i >= 0; i--) {
-      const vorige = items[i]?.oefeningen?.[oefening]?.[setNummer];
-      if (vorige) return vorige;
-    }
-    return null;
+    return vindLaatsteOefeningWaarden(historie(), OEFENING_IDS[oefening])?.[setNummer] || null;
   };
 
   const gebruikVorigeTraining = (oefening) => {
@@ -126,7 +134,7 @@ function Trainingen({ initialTraining, onTrainingClosed }) {
     showToast("Geen eerdere training gevonden", "info");
   };
 
-  const haalRecordOp = (oefening) => historie().reduce((record, item) => Math.max(record, ...Object.values(item?.oefeningen?.[oefening] || {}).map((setData) => Number(setData?.gewicht || 0))), 0);
+  const haalRecordOp = (oefening) => berekenPersoonlijkeRecords(historie())[oefening] || 0;
   const wijzigSet = (oefening, setNummer, veld, waarde) => setSessie((vorige) => ({ ...vorige, gegevens: { ...vorige.gegevens, [oefening]: { ...vorige.gegevens[oefening], [setNummer]: { ...vorige.gegevens[oefening]?.[setNummer], [veld]: waarde } } } }));
   const stapWaarde = (oefening, setNummer, veld, stap) => {
     const huidig = Number(sessie.gegevens[oefening]?.[setNummer]?.[veld] || 0);
