@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.3 - 2026-07-14
+
+- De Dashboard-versie-indicator gebruikt voortaan dezelfde berekende navigatiehoogte en iOS-safe-area als de onderste navigatie en blijft daar zichtbaar boven.
+- De rusttimer geeft bij nul eenmaal een korte dubbele Web Audio-piep; audio wordt vanuit de startklik ontgrendeld voor actieve iPhone-PWA's.
+- “Geluid bij afloop” staat standaard aan, wordt lokaal in de browser/PWA bewaard en kan direct worden uitgeschakeld.
+- Herstelde, geannuleerde of al verstreken timers en component-remounts veroorzaken geen timersignaal.
+
 ## 0.8.2 - 2026-07-14
 
 - “Herstel vorige waarde” zoekt uitsluitend via de stabiele oefening-ID in alle historie van Training A, Training B en Vrije training.

@@ -10,6 +10,7 @@ import { ACTIEVE_TRAINING_KEY, bewaarActieveTraining, verwijderActieveTraining }
 import { useCloudSync } from "../sync/syncContext";
 import { maakEenmaligeUitvoerder } from "../utils/eenmaligeUitvoerder";
 import { maakTrainingResultaat } from "../utils/trainingSession";
+import { bewaarRusttimerGeluidInstelling, leesRusttimerGeluidInstelling, maakRusttimerAlarmBewaker, ontgrendelRusttimerAudio, speelRusttimerSignaal } from "../utils/rusttimerAudio";
 
 const SETS = [1, 2, 3];
 const huidigTijdstip = () => Date.now();
@@ -41,9 +42,14 @@ function Trainingen({ initialTraining, onTrainingClosed }) {
   const [bevestigOnvolledig, setBevestigOnvolledig] = useState(false);
   const [bevestigStoppen, setBevestigStoppen] = useState(false);
   const [bezigMetStoppen, setBezigMetStoppen] = useState(false);
+  const [rusttimerGeluid, setRusttimerGeluid] = useState(leesRusttimerGeluidInstelling);
   const bezigMetAfronden = useRef(false);
   const stopKnop = useRef(null);
   const voerStoppenEenmaligUit = useRef(maakEenmaligeUitvoerder());
+  const rusttimerAlarm = useRef(maakRusttimerAlarmBewaker(speelRusttimerSignaal));
+  const rusttimerGeluidRef = useRef(rusttimerGeluid);
+
+  useEffect(() => { rusttimerGeluidRef.current = rusttimerGeluid; }, [rusttimerGeluid]);
 
   const historie = leesTrainingHistorie;
 
@@ -63,9 +69,7 @@ function Trainingen({ initialTraining, onTrainingClosed }) {
     const interval = setInterval(() => setSessie((vorige) => {
       if (!vorige || vorige.timer <= 0) return vorige;
       if (vorige.timer === 1) {
-        const audio = new Audio("/ping.mp3");
-        audio.volume = 1;
-        audio.play().catch(() => {});
+        rusttimerAlarm.current.tik(vorige.timer, rusttimerGeluidRef.current);
         showToast("Rusttijd voorbij — je kunt weer verder", "info", { duration: 3500 });
       }
       return { ...vorige, timer: vorige.timer - 1 };
@@ -134,7 +138,13 @@ function Trainingen({ initialTraining, onTrainingClosed }) {
   };
   const voltooiSet = (oefening, setNummer) => {
     const sleutel = `${oefening}-${setNummer}`;
+    if (rusttimerGeluidRef.current) void ontgrendelRusttimerAudio();
+    rusttimerAlarm.current.start();
     setSessie((vorige) => ({ ...vorige, voltooideSets: vorige.voltooideSets.includes(sleutel) ? vorige.voltooideSets : [...vorige.voltooideSets, sleutel], timer: 60 }));
+  };
+  const wijzigRusttimerGeluid = (ingeschakeld) => {
+    rusttimerGeluidRef.current = ingeschakeld;
+    setRusttimerGeluid(bewaarRusttimerGeluidInstelling(ingeschakeld));
   };
   const slaOefeningOp = () => {
     const volgende = {
@@ -230,6 +240,7 @@ function Trainingen({ initialTraining, onTrainingClosed }) {
         <Card className="exercise-card">
           <div className="exercise-header"><div><h2>{geselecteerd}</h2><div style={{ marginTop: 8 }}><StatusBadge tone="warning">Record: {haalRecordOp(geselecteerd)} kg</StatusBadge></div></div><SecondaryButton className="button--compact" icon="↶" onClick={() => herstelVorigeWaarden(geselecteerd)}>Herstel vorige waarde</SecondaryButton></div>
           <div className="timer-row"><span className="field-label">Rusttimer</span><StatusBadge tone={sessie.timer > 0 ? "warning" : "success"}>{sessie.timer > 0 ? `${sessie.timer}s resterend` : "Klaar"}</StatusBadge></div>
+          <label className="timer-sound-setting"><input type="checkbox" checked={rusttimerGeluid} onChange={(event) => wijzigRusttimerGeluid(event.target.checked)} /><span>Geluid bij afloop</span></label>
           <div className="sets">{SETS.map((setNummer) => {
             const vorigeSet = haalVorigeSetOp(geselecteerd, setNummer);
             const sleutel = `${geselecteerd}-${setNummer}`;

@@ -1,7 +1,7 @@
 {
   "name": "fitnesstracker",
   "private": true,
-  "version": "0.8.2",
+  "version": "0.8.3",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -15,6 +15,7 @@
     "test:interaction": "vitest run src/pages/Trainingen.interaction.test.jsx",
     "test:vrije-training": "node scripts/test-vrije-training.mjs",
     "test:laatste-waarden": "node scripts/test-laatste-oefeningwaarden.mjs",
+    "test:rusttimer-ux": "node scripts/test-rusttimer-ux.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
