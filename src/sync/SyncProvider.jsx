@@ -30,6 +30,7 @@ const STATUS_LABELS = {
 };
 
 export function SyncProvider({ children }) {
+  console.log("SyncProvider gestart");
   const { currentUser, signOutUser } = useAuth();
   const uid = currentUser?.uid;
   const { showToast } = useToast();

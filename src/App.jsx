@@ -28,6 +28,7 @@ const navigation = [
 ];
 
 function App() {
+  console.log("App render gestart");
   const [pagina, setPagina] = useState("dashboard");
   const [directeTraining, setDirecteTraining] = useState(null);
   const [dataRevision, setDataRevision] = useState(0);

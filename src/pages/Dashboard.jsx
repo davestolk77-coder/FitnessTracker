@@ -33,6 +33,7 @@ function leesLaatsteGewicht() {
 }
 
 function Dashboard({ onStartTraining }) {
+  console.log("Dashboard gestart");
   const { showToast } = useToast();
   const { currentUser, signOutUser, actieBezig } = useAuth();
   const { status, statusLabel } = useCloudSync();
