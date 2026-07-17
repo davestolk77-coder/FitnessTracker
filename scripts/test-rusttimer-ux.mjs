@@ -34,4 +34,6 @@ const css = await readFile(new URL("../src/App.css", import.meta.url), "utf8");
 assert.match(css, /--bottom-nav-height:[^;]*--bottom-nav-control-height[^;]*safe-area-inset-bottom/);
 assert.match(css, /\.dashboard-version\s*\{[^}]*bottom:\s*calc\(var\(--bottom-nav-height\) \+ 8px\)/s);
 assert.match(css, /\.app-content[^}]*padding:[^;]*var\(--bottom-nav-height\)/s);
+assert.match(css, /\.toast-region\s*\{[^}]*z-index:\s*100[^}]*top:\s*calc\(max\(14px, env\(safe-area-inset-top\)\) \+ 8px\)/s);
+assert.match(css, /\.set-timer-button\s*\{[^}]*min-height:\s*44px/s);
 console.log("Alle rusttimeraudio-, instelling- en versielayouttests zijn geslaagd.");

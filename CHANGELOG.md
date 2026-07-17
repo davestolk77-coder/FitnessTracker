@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.5 - 2026-07-17
+
+- Rusttimer verplaatst naar iedere afzonderlijke setregel.
+- Timerstatus wordt bij de actieve set weergegeven.
+- Melding na afloop van de rusttimer wordt voortaan boven in het scherm getoond.
+
 ## 0.8.4 - 2026-07-14
 
 - De sync-timestampnormalisatie accepteert nu veilig `null`, `undefined`, ontbrekende en ongeldige `updatedAt`-waarden.

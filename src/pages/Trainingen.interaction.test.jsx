@@ -96,4 +96,27 @@ describe("actieve oefening tijdens autosave", () => {
     fireEvent.click(screen.getByRole("button", { name: "Herstel vorige waarde" }));
     expect(showToast).toHaveBeenCalledWith("Geen eerdere waarden voor Chest Press gevonden.", "info");
   });
+
+  it("koppelt maximaal één rusttimer aan de gekozen set en ondersteunt stoppen en herstarten", async () => {
+    const showToast = vi.fn();
+    render(<AppOnderTest showToast={showToast} />);
+    await act(async () => { await Promise.resolve(); });
+    fireEvent.click(screen.getByRole("button", { name: /Chest Press/ }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Start rusttimer van set 1" }));
+    expect(screen.getByRole("button", { name: "Stop rusttimer van set 1" }).textContent).toContain("60s");
+    expect(screen.getByRole("button", { name: "Start rusttimer van set 2" }).textContent).toBe("Rust 60s");
+
+    fireEvent.click(screen.getByRole("button", { name: "Start rusttimer van set 2" }));
+    expect(screen.queryByRole("button", { name: "Stop rusttimer van set 1" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Stop rusttimer van set 2" }).textContent).toContain("60s");
+
+    await act(async () => { vi.advanceTimersByTime(60_000); });
+    expect(showToast).toHaveBeenCalledWith("Rusttijd voorbij — je kunt weer verder", "info", { duration: 3500 });
+    expect(screen.getByRole("button", { name: "Start rusttimer van set 2" }).textContent).toBe("Opnieuw 60s");
+
+    fireEvent.click(screen.getByRole("button", { name: "Start rusttimer van set 2" }));
+    fireEvent.click(screen.getByRole("button", { name: "Stop rusttimer van set 2" }));
+    expect(screen.getByRole("button", { name: "Start rusttimer van set 2" }).textContent).toBe("Opnieuw 60s");
+  });
 });

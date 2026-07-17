@@ -43,6 +43,7 @@ function Trainingen({ initialTraining, onTrainingClosed }) {
   const [bevestigStoppen, setBevestigStoppen] = useState(false);
   const [bezigMetStoppen, setBezigMetStoppen] = useState(false);
   const [rusttimerGeluid, setRusttimerGeluid] = useState(leesRusttimerGeluidInstelling);
+  const [actieveRusttimerSet, setActieveRusttimerSet] = useState(null);
   const bezigMetAfronden = useRef(false);
   const stopKnop = useRef(null);
   const voerStoppenEenmaligUit = useRef(maakEenmaligeUitvoerder());
@@ -82,6 +83,7 @@ function Trainingen({ initialTraining, onTrainingClosed }) {
     bewaarActieveTraining(volgende, { urgent: true });
     setSessie(volgende);
     setGeselecteerd(null);
+    setActieveRusttimerSet(null);
   };
 
   const stopTraining = async () => {
@@ -103,6 +105,7 @@ function Trainingen({ initialTraining, onTrainingClosed }) {
     setBezigMetStoppen(false);
     setSessie(null);
     setGeselecteerd(null);
+    setActieveRusttimerSet(null);
     onTrainingClosed();
   };
 
@@ -138,9 +141,18 @@ function Trainingen({ initialTraining, onTrainingClosed }) {
   };
   const voltooiSet = (oefening, setNummer) => {
     const sleutel = `${oefening}-${setNummer}`;
+    startRusttimer(oefening, setNummer);
+    setSessie((vorige) => ({ ...vorige, voltooideSets: vorige.voltooideSets.includes(sleutel) ? vorige.voltooideSets : [...vorige.voltooideSets, sleutel] }));
+  };
+  const startRusttimer = (oefening, setNummer) => {
     if (rusttimerGeluidRef.current) void ontgrendelRusttimerAudio();
     rusttimerAlarm.current.start();
-    setSessie((vorige) => ({ ...vorige, voltooideSets: vorige.voltooideSets.includes(sleutel) ? vorige.voltooideSets : [...vorige.voltooideSets, sleutel], timer: 60 }));
+    setActieveRusttimerSet({ oefening, setNummer });
+    setSessie((vorige) => ({ ...vorige, timer: 60 }));
+  };
+  const stopRusttimer = () => {
+    rusttimerAlarm.current.annuleer();
+    setSessie((vorige) => ({ ...vorige, timer: 0 }));
   };
   const wijzigRusttimerGeluid = (ingeschakeld) => {
     rusttimerGeluidRef.current = ingeschakeld;
@@ -175,6 +187,7 @@ function Trainingen({ initialTraining, onTrainingClosed }) {
     }
     showToast("Training opgeslagen", "success");
     setSessie(null);
+    setActieveRusttimerSet(null);
     onTrainingClosed();
   };
 
@@ -239,13 +252,14 @@ function Trainingen({ initialTraining, onTrainingClosed }) {
       {isCardio ? <><div className="exercise-header"><span /><SecondaryButton className="button--compact" icon="↶" onClick={() => herstelVorigeWaarden(geselecteerd)}>Herstel vorige waarde</SecondaryButton></div><CardioForm value={sessie.cardio} onCardioChange={(cardio) => setSessie((vorige) => ({ ...vorige, cardio }))} /></> : (
         <Card className="exercise-card">
           <div className="exercise-header"><div><h2>{geselecteerd}</h2><div style={{ marginTop: 8 }}><StatusBadge tone="warning">Record: {haalRecordOp(geselecteerd)} kg</StatusBadge></div></div><SecondaryButton className="button--compact" icon="↶" onClick={() => herstelVorigeWaarden(geselecteerd)}>Herstel vorige waarde</SecondaryButton></div>
-          <div className="timer-row"><span className="field-label">Rusttimer</span><StatusBadge tone={sessie.timer > 0 ? "warning" : "success"}>{sessie.timer > 0 ? `${sessie.timer}s resterend` : "Klaar"}</StatusBadge></div>
           <label className="timer-sound-setting"><input type="checkbox" checked={rusttimerGeluid} onChange={(event) => wijzigRusttimerGeluid(event.target.checked)} /><span>Geluid bij afloop</span></label>
           <div className="sets">{SETS.map((setNummer) => {
             const vorigeSet = haalVorigeSetOp(geselecteerd, setNummer);
             const sleutel = `${geselecteerd}-${setNummer}`;
             const voltooid = sessie.voltooideSets.includes(sleutel);
-            return <div key={setNummer}>{vorigeSet && <p className="previous-set">Vorige keer: {vorigeSet.gewicht || 0} kg × {vorigeSet.reps || 0}</p>}<div className={`set-card${voltooid ? " is-complete" : ""}`}><div className="set-card__header"><strong>Set {setNummer}</strong>{voltooid && <StatusBadge>Voltooid</StatusBadge>}</div><div className="set-fields"><div className="field"><label htmlFor={`${geselecteerd}-${setNummer}-kg`}>Gewicht (kg)</label><div className="stepper"><button type="button" aria-label={`Verlaag gewicht van set ${setNummer}`} onClick={() => stapWaarde(geselecteerd, setNummer, "gewicht", -1)}>−</button><input id={`${geselecteerd}-${setNummer}-kg`} type="number" inputMode="decimal" value={sessie.gegevens[geselecteerd]?.[setNummer]?.gewicht || ""} onChange={(e) => wijzigSet(geselecteerd, setNummer, "gewicht", e.target.value)} placeholder="0" /><button type="button" aria-label={`Verhoog gewicht van set ${setNummer}`} onClick={() => stapWaarde(geselecteerd, setNummer, "gewicht", 1)}>+</button></div></div><div className="field"><label htmlFor={`${geselecteerd}-${setNummer}-reps`}>Herhalingen</label><div className="stepper"><button type="button" aria-label={`Verlaag herhalingen van set ${setNummer}`} onClick={() => stapWaarde(geselecteerd, setNummer, "reps", -1)}>−</button><input id={`${geselecteerd}-${setNummer}-reps`} type="number" inputMode="numeric" value={sessie.gegevens[geselecteerd]?.[setNummer]?.reps || ""} onChange={(e) => wijzigSet(geselecteerd, setNummer, "reps", e.target.value)} placeholder="0" /><button type="button" aria-label={`Verhoog herhalingen van set ${setNummer}`} onClick={() => stapWaarde(geselecteerd, setNummer, "reps", 1)}>+</button></div></div></div><SecondaryButton className="button--full complete-set-button" disabled={voltooid} onClick={() => voltooiSet(geselecteerd, setNummer)}>{voltooid ? "Set voltooid" : "Voltooi set en start rust"}</SecondaryButton></div></div>;
+            const timerHoortBijSet = actieveRusttimerSet?.oefening === geselecteerd && actieveRusttimerSet?.setNummer === setNummer;
+            const timerLoopt = timerHoortBijSet && sessie.timer > 0;
+            return <div key={setNummer}>{vorigeSet && <p className="previous-set">Vorige keer: {vorigeSet.gewicht || 0} kg × {vorigeSet.reps || 0}</p>}<div className={`set-card${voltooid ? " is-complete" : ""}`}><div className="set-card__header"><strong>Set {setNummer}</strong><div className="set-card__status">{voltooid && <StatusBadge>Voltooid</StatusBadge>}<button type="button" className={`set-timer-button${timerLoopt ? " is-active" : ""}`} aria-label={timerLoopt ? `Stop rusttimer van set ${setNummer}` : `Start rusttimer van set ${setNummer}`} onClick={() => timerLoopt ? stopRusttimer() : startRusttimer(geselecteerd, setNummer)}>{timerLoopt ? `${sessie.timer}s · Stop` : timerHoortBijSet ? "Opnieuw 60s" : "Rust 60s"}</button></div></div><div className="set-fields"><div className="field"><label htmlFor={`${geselecteerd}-${setNummer}-kg`}>Gewicht (kg)</label><div className="stepper"><button type="button" aria-label={`Verlaag gewicht van set ${setNummer}`} onClick={() => stapWaarde(geselecteerd, setNummer, "gewicht", -1)}>−</button><input id={`${geselecteerd}-${setNummer}-kg`} type="number" inputMode="decimal" value={sessie.gegevens[geselecteerd]?.[setNummer]?.gewicht || ""} onChange={(e) => wijzigSet(geselecteerd, setNummer, "gewicht", e.target.value)} placeholder="0" /><button type="button" aria-label={`Verhoog gewicht van set ${setNummer}`} onClick={() => stapWaarde(geselecteerd, setNummer, "gewicht", 1)}>+</button></div></div><div className="field"><label htmlFor={`${geselecteerd}-${setNummer}-reps`}>Herhalingen</label><div className="stepper"><button type="button" aria-label={`Verlaag herhalingen van set ${setNummer}`} onClick={() => stapWaarde(geselecteerd, setNummer, "reps", -1)}>−</button><input id={`${geselecteerd}-${setNummer}-reps`} type="number" inputMode="numeric" value={sessie.gegevens[geselecteerd]?.[setNummer]?.reps || ""} onChange={(e) => wijzigSet(geselecteerd, setNummer, "reps", e.target.value)} placeholder="0" /><button type="button" aria-label={`Verhoog herhalingen van set ${setNummer}`} onClick={() => stapWaarde(geselecteerd, setNummer, "reps", 1)}>+</button></div></div></div><SecondaryButton className="button--full complete-set-button" disabled={voltooid} onClick={() => voltooiSet(geselecteerd, setNummer)}>{voltooid ? "Set voltooid" : "Voltooi set en start rust"}</SecondaryButton></div></div>;
           })}</div>
         </Card>
       )}
