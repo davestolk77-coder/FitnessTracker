@@ -11,6 +11,7 @@ import { useCloudSync } from "../sync/syncContext";
 import { maakEenmaligeUitvoerder } from "../utils/eenmaligeUitvoerder";
 import { maakTrainingResultaat } from "../utils/trainingSession";
 import { bewaarRusttimerGeluidInstelling, leesRusttimerGeluidInstelling, maakRusttimerAlarmBewaker, ontgrendelRusttimerAudio, speelRusttimerSignaal } from "../utils/rusttimerAudio";
+import { bewaarRusttimerNotificatieInstelling, leesRusttimerNotificatieInstelling, maakRusttimerNotificatieBewaker, vraagRusttimerNotificatieToestemming } from "../utils/rusttimerNotificatie";
 
 const SETS = [1, 2, 3];
 const huidigTijdstip = () => Date.now();
@@ -43,14 +44,19 @@ function Trainingen({ initialTraining, onTrainingClosed }) {
   const [bevestigStoppen, setBevestigStoppen] = useState(false);
   const [bezigMetStoppen, setBezigMetStoppen] = useState(false);
   const [rusttimerGeluid, setRusttimerGeluid] = useState(leesRusttimerGeluidInstelling);
+  const [rusttimerNotificatie, setRusttimerNotificatie] = useState(() => leesRusttimerNotificatieInstelling() && globalThis.Notification?.permission === "granted");
   const [actieveRusttimerSet, setActieveRusttimerSet] = useState(null);
   const bezigMetAfronden = useRef(false);
   const stopKnop = useRef(null);
   const voerStoppenEenmaligUit = useRef(maakEenmaligeUitvoerder());
   const rusttimerAlarm = useRef(maakRusttimerAlarmBewaker(speelRusttimerSignaal));
+  const rusttimerNotificatieBewaker = useRef(maakRusttimerNotificatieBewaker());
   const rusttimerGeluidRef = useRef(rusttimerGeluid);
+  const rusttimerNotificatieRef = useRef(rusttimerNotificatie);
 
   useEffect(() => { rusttimerGeluidRef.current = rusttimerGeluid; }, [rusttimerGeluid]);
+  useEffect(() => { rusttimerNotificatieRef.current = rusttimerNotificatie; }, [rusttimerNotificatie]);
+  useEffect(() => () => rusttimerNotificatieBewaker.current.annuleer(), []);
 
   const historie = leesTrainingHistorie;
 
@@ -71,6 +77,7 @@ function Trainingen({ initialTraining, onTrainingClosed }) {
       if (!vorige || vorige.timer <= 0) return vorige;
       if (vorige.timer === 1) {
         rusttimerAlarm.current.tik(vorige.timer, rusttimerGeluidRef.current);
+        rusttimerNotificatieBewaker.current.meld(rusttimerNotificatieRef.current);
         showToast("Rusttijd voorbij — je kunt weer verder", "info", { duration: 3500 });
       }
       return { ...vorige, timer: vorige.timer - 1 };
@@ -84,9 +91,11 @@ function Trainingen({ initialTraining, onTrainingClosed }) {
     setSessie(volgende);
     setGeselecteerd(null);
     setActieveRusttimerSet(null);
+    rusttimerNotificatieBewaker.current.annuleer();
   };
 
   const stopTraining = async () => {
+    rusttimerNotificatieBewaker.current.annuleer();
     try {
       const uitgevoerd = await voerStoppenEenmaligUit.current(async () => {
         setBezigMetStoppen(true);
@@ -106,10 +115,12 @@ function Trainingen({ initialTraining, onTrainingClosed }) {
     setSessie(null);
     setGeselecteerd(null);
     setActieveRusttimerSet(null);
+    rusttimerNotificatieBewaker.current.annuleer();
     onTrainingClosed();
   };
 
   const openOefening = (oefening) => {
+    rusttimerNotificatieBewaker.current.annuleer();
     setSessie((vorige) => ({ ...vorige, statussen: { ...vorige.statussen, [oefening]: vorige.statussen[oefening] === "Voltooid" ? "Voltooid" : "Bezig" } }));
     setGeselecteerd(oefening);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -147,18 +158,38 @@ function Trainingen({ initialTraining, onTrainingClosed }) {
   const startRusttimer = (oefening, setNummer) => {
     if (rusttimerGeluidRef.current) void ontgrendelRusttimerAudio();
     rusttimerAlarm.current.start();
+    rusttimerNotificatieBewaker.current.start();
     setActieveRusttimerSet({ oefening, setNummer });
     setSessie((vorige) => ({ ...vorige, timer: 60 }));
   };
   const stopRusttimer = () => {
     rusttimerAlarm.current.annuleer();
+    rusttimerNotificatieBewaker.current.annuleer();
     setSessie((vorige) => ({ ...vorige, timer: 0 }));
   };
   const wijzigRusttimerGeluid = (ingeschakeld) => {
     rusttimerGeluidRef.current = ingeschakeld;
     setRusttimerGeluid(bewaarRusttimerGeluidInstelling(ingeschakeld));
   };
+  const wijzigRusttimerNotificatie = async (ingeschakeld) => {
+    if (!ingeschakeld) {
+      rusttimerNotificatieRef.current = false;
+      setRusttimerNotificatie(bewaarRusttimerNotificatieInstelling(false));
+      rusttimerNotificatieBewaker.current.annuleer();
+      return;
+    }
+    const toestemming = await vraagRusttimerNotificatieToestemming();
+    if (toestemming === "granted") {
+      rusttimerNotificatieRef.current = true;
+      setRusttimerNotificatie(bewaarRusttimerNotificatieInstelling(true));
+      return;
+    }
+    rusttimerNotificatieRef.current = false;
+    setRusttimerNotificatie(bewaarRusttimerNotificatieInstelling(false));
+    showToast(toestemming === "unsupported" ? "Systeemnotificaties worden niet ondersteund op dit apparaat of in deze browser." : "Toestemming voor systeemnotificaties is niet verleend.", "info");
+  };
   const slaOefeningOp = () => {
+    rusttimerNotificatieBewaker.current.annuleer();
     const volgende = {
       ...sessie,
       cardio: geselecteerd === "Cardio" && !sessie.cardio.type ? { ...sessie.cardio, type: "Loopband" } : sessie.cardio,
@@ -174,6 +205,7 @@ function Trainingen({ initialTraining, onTrainingClosed }) {
   const trainingDefinitiefOpslaan = async () => {
     if (bezigMetAfronden.current) return;
     bezigMetAfronden.current = true;
+    rusttimerNotificatieBewaker.current.annuleer();
     const eindTijd = huidigTijdstip();
     const trainingData = maakTrainingResultaat(sessie, eindTijd);
     try {
@@ -188,6 +220,7 @@ function Trainingen({ initialTraining, onTrainingClosed }) {
     showToast("Training opgeslagen", "success");
     setSessie(null);
     setActieveRusttimerSet(null);
+    rusttimerNotificatieBewaker.current.annuleer();
     onTrainingClosed();
   };
 
@@ -247,12 +280,13 @@ function Trainingen({ initialTraining, onTrainingClosed }) {
   const isCardio = geselecteerd === "Cardio";
   return (
     <AppScreen className="active-workout">
-      <SecondaryButton className="back-button button--compact" icon="←" onClick={() => { bewaarActieveTraining(sessie, { urgent: true }); setGeselecteerd(null); }}>Terug naar overzicht</SecondaryButton>
+      <SecondaryButton className="back-button button--compact" icon="←" onClick={() => { bewaarActieveTraining(sessie, { urgent: true }); rusttimerNotificatieBewaker.current.annuleer(); setGeselecteerd(null); }}>Terug naar overzicht</SecondaryButton>
       <AppHeader eyebrow="Oefening" title={geselecteerd} subtitle={sessie.training} />
       {isCardio ? <><div className="exercise-header"><span /><SecondaryButton className="button--compact" icon="↶" onClick={() => herstelVorigeWaarden(geselecteerd)}>Herstel vorige waarde</SecondaryButton></div><CardioForm value={sessie.cardio} onCardioChange={(cardio) => setSessie((vorige) => ({ ...vorige, cardio }))} /></> : (
         <Card className="exercise-card">
           <div className="exercise-header"><div><h2>{geselecteerd}</h2><div style={{ marginTop: 8 }}><StatusBadge tone="warning">Record: {haalRecordOp(geselecteerd)} kg</StatusBadge></div></div><SecondaryButton className="button--compact" icon="↶" onClick={() => herstelVorigeWaarden(geselecteerd)}>Herstel vorige waarde</SecondaryButton></div>
           <label className="timer-sound-setting"><input type="checkbox" checked={rusttimerGeluid} onChange={(event) => wijzigRusttimerGeluid(event.target.checked)} /><span>Geluid bij afloop</span></label>
+          <label className="timer-sound-setting"><input type="checkbox" checked={rusttimerNotificatie} onChange={(event) => void wijzigRusttimerNotificatie(event.target.checked)} /><span>Melding bij afloop</span></label>
           <div className="sets">{SETS.map((setNummer) => {
             const vorigeSet = haalVorigeSetOp(geselecteerd, setNummer);
             const sleutel = `${geselecteerd}-${setNummer}`;

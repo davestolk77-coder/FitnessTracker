@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.6 - 2026-07-17
+
+- Optionele systeemnotificatie toegevoegd wanneer de rusttimer afloopt.
+- Notificatierechten worden pas gevraagd wanneer de gebruiker meldingen inschakelt.
+- Dubbele of verouderde rusttimermeldingen worden voorkomen.
+- Voorbereiding toegevoegd voor het doorsturen van meldingen naar een gekoppelde Apple Watch.
+
 ## 0.8.5 - 2026-07-17
 
 - Rusttimer verplaatst naar iedere afzonderlijke setregel.

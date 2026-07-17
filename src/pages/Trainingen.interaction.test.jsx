@@ -119,4 +119,37 @@ describe("actieve oefening tijdens autosave", () => {
     fireEvent.click(screen.getByRole("button", { name: "Stop rusttimer van set 2" }));
     expect(screen.getByRole("button", { name: "Start rusttimer van set 2" }).textContent).toBe("Opnieuw 60s");
   });
+
+  it("vraagt notificatierechten pas bij inschakelen en bewaart verleende toestemming", async () => {
+    const requestPermission = vi.fn(async () => "granted");
+    vi.stubGlobal("Notification", { permission: "default", requestPermission });
+    render(<AppOnderTest />);
+    await act(async () => { await Promise.resolve(); });
+    fireEvent.click(screen.getByRole("button", { name: /Chest Press/ }));
+
+    const instelling = screen.getByLabelText("Melding bij afloop");
+    expect(requestPermission).not.toHaveBeenCalled();
+    fireEvent.click(instelling);
+    await act(async () => { await Promise.resolve(); });
+
+    expect(requestPermission).toHaveBeenCalledTimes(1);
+    expect(instelling.checked).toBe(true);
+    expect(localStorage.getItem("fitnessTrackerRusttimerNotificatie")).toBe("true");
+  });
+
+  it("laat de notificatie-instelling uit bij geweigerde toestemming", async () => {
+    const showToast = vi.fn();
+    vi.stubGlobal("Notification", { permission: "default", requestPermission: vi.fn(async () => "denied") });
+    render(<AppOnderTest showToast={showToast} />);
+    await act(async () => { await Promise.resolve(); });
+    fireEvent.click(screen.getByRole("button", { name: /Chest Press/ }));
+
+    const instelling = screen.getByLabelText("Melding bij afloop");
+    fireEvent.click(instelling);
+    await act(async () => { await Promise.resolve(); });
+
+    expect(instelling.checked).toBe(false);
+    expect(localStorage.getItem("fitnessTrackerRusttimerNotificatie")).toBe("false");
+    expect(showToast).toHaveBeenCalledWith("Toestemming voor systeemnotificaties is niet verleend.", "info");
+  });
 });
