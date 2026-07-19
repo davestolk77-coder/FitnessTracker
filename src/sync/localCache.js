@@ -2,6 +2,7 @@ import { leesJson } from "../utils/storage.js";
 import { maakFitnessBackupData } from "../utils/trainingHistorie.js";
 import { CLOUD_OWNER_KEY, isPlainObject } from "./syncModel.js";
 import { meldLokaleWijziging } from "./localChanges.js";
+import { migreerTrainingsgewichten, TRAINING_WEIGHT_UNIT_VERSION } from "../utils/trainingWeightMigration.js";
 
 export const ACTIEVE_TRAINING_KEY = "actieveTraining";
 export const INSTELLINGEN_KEY = "appInstellingen";
@@ -79,7 +80,10 @@ export function maakCloudMigratieBackup(uid) {
 }
 
 export function leesActieveTraining() {
-  return leesJson(ACTIEVE_TRAINING_KEY, null);
+  const opgeslagen = leesJson(ACTIEVE_TRAINING_KEY, null);
+  const gemigreerd = migreerTrainingsgewichten(opgeslagen);
+  if (gemigreerd && gemigreerd !== opgeslagen) localStorage.setItem(ACTIEVE_TRAINING_KEY, JSON.stringify(gemigreerd));
+  return gemigreerd;
 }
 
 function actieveInhoudFingerprint(sessie) {
@@ -105,6 +109,8 @@ export function bewaarActieveTraining(sessie, { urgent = false, notify = true, v
     updatedAtLocal: nu,
     syncGeneration: Math.max(Number(sessie.syncGeneration || 0), bestaandeGeneratie) + (verhoogGeneratie ? 1 : 0),
     schemaVersion: 1,
+    weightUnit: "lb",
+    weightUnitVersion: TRAINING_WEIGHT_UNIT_VERSION,
   };
   localStorage.setItem(ACTIEVE_TRAINING_KEY, JSON.stringify(opgeslagen));
   if (notify) meldLokaleWijziging({ type: "active-upsert", data: opgeslagen, urgent });

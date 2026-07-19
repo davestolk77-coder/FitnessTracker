@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.7 - 2026-07-19
+
+- Trainingsgewichten gebruiken voortaan pond in vaste stappen van 10 lb; bestaande kilogramwaarden worden automatisch en eenmalig geconverteerd.
+- Na de laatste set wordt geen rusttimer meer gestart en wordt de oefening direct opgeslagen.
+- De begroeting op het homescherm past zich aan de lokale tijd aan, inclusief een nachtbegroeting.
+
 ## 0.8.6 - 2026-07-17
 
 - Optionele systeemnotificatie toegevoegd wanneer de rusttimer afloopt.

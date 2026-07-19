@@ -18,6 +18,7 @@ import { bindLokaleDataAanUid, controleerLokaleDataEigenaar, maakCloudMigratieBa
 import { volgLokaleWijzigingen } from "./localChanges";
 import { getDeviceId } from "./syncIdentity";
 import { SyncContext } from "./syncContext";
+import { CLOUD_MIGRATION_VERSION } from "./syncModel";
 
 const STATUS_LABELS = {
   idle: "Alles gesynchroniseerd",
@@ -78,7 +79,7 @@ export function SyncProvider({ children }) {
         maakCloudMigratieBackup(uid);
         bindLokaleDataAanUid(uid);
         getDeviceId();
-        const eersteMigratie = localStorage.getItem(`fitnessCloudMigrationVersion:${uid}`) === null;
+        const eersteMigratie = Number(localStorage.getItem(`fitnessCloudMigrationVersion:${uid}`) || 0) < CLOUD_MIGRATION_VERSION;
         setStatus(eersteMigratie ? "migrating" : "syncing");
         const resultaat = eersteMigratie
           ? await voerVeiligeCloudMigratieUit(uid, {

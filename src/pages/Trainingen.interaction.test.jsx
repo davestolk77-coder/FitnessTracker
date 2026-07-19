@@ -35,7 +35,7 @@ function AppOnderTest({ showToast = vi.fn() }) {
 describe("actieve oefening tijdens autosave", () => {
   beforeEach(() => {
     localStorage.clear();
-    localStorage.setItem("fitnessCloudMigrationVersion:test-user", "1");
+    localStorage.setItem("fitnessCloudMigrationVersion:test-user", "2");
     vi.stubGlobal("scrollTo", vi.fn());
     vi.useFakeTimers();
   });
@@ -49,7 +49,7 @@ describe("actieve oefening tijdens autosave", () => {
     render(<AppOnderTest />);
     await act(async () => { await Promise.resolve(); });
     fireEvent.click(screen.getByRole("button", { name: /Chest Press/ }));
-    const gewicht = document.getElementById("Chest Press-1-kg");
+    const gewicht = document.getElementById("Chest Press-1-lb");
     fireEvent.change(gewicht, { target: { value: "80" } });
     localStorage.removeItem("fitnessCloudMigrationVersion:test-user");
 
@@ -63,7 +63,7 @@ describe("actieve oefening tijdens autosave", () => {
 
     expect(screen.getByRole("heading", { name: "Chest Press", level: 1 })).not.toBeNull();
     expect(screen.queryByRole("heading", { name: TRAINING_A, level: 1 })).toBeNull();
-    expect(document.getElementById("Chest Press-1-kg").value).toBe("80");
+    expect(document.getElementById("Chest Press-1-lb").value).toBe("80");
   });
 
   it("overschrijft actieve invoer pas na expliciet herstellen uit oude A-historie", async () => {
@@ -72,18 +72,20 @@ describe("actieve oefening tijdens autosave", () => {
       training: TRAINING_A,
       trainingSchemaId: "training-a",
       datum: "2026-07-13T10:00:00.000Z",
-      oefeningen: { "Chest Press": { 1: { gewicht: "77", reps: "9" } } },
+      oefeningen: { "Chest Press": { 1: { gewicht: "80", reps: "9" } } },
       cardio: {},
+      weightUnit: "lb",
+      weightUnitVersion: 1,
     }]));
 
     render(<AppOnderTest />);
     await act(async () => { await Promise.resolve(); });
     fireEvent.click(screen.getByRole("button", { name: /Chest Press/ }));
-    expect(document.getElementById("Chest Press-1-kg").value).toBe("");
-    fireEvent.change(document.getElementById("Chest Press-1-kg"), { target: { value: "99" } });
-    expect(document.getElementById("Chest Press-1-kg").value).toBe("99");
+    expect(document.getElementById("Chest Press-1-lb").value).toBe("");
+    fireEvent.change(document.getElementById("Chest Press-1-lb"), { target: { value: "100" } });
+    expect(document.getElementById("Chest Press-1-lb").value).toBe("100");
     fireEvent.click(screen.getByRole("button", { name: "Herstel vorige waarde" }));
-    expect(document.getElementById("Chest Press-1-kg").value).toBe("77");
+    expect(document.getElementById("Chest Press-1-lb").value).toBe("80");
     expect(document.getElementById("Chest Press-1-reps").value).toBe("9");
     expect(screen.getByText("Vrije training")).not.toBeNull();
   });

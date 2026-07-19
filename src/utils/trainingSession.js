@@ -1,4 +1,5 @@
 import { OEFENING_IDS, TRAINING_SCHEMA_IDS, VRIJE_TRAINING, trainingen } from "../data/trainingen.js";
+import { TRAINING_WEIGHT_UNIT_VERSION } from "./trainingWeightMigration.js";
 
 const SETS = [1, 2, 3];
 
@@ -22,5 +23,6 @@ export function maakTrainingResultaat(sessie, eindTijd = Date.now()) {
     voltooideOefeningen: voltooideOnderdelen.length, totaalOefeningen: onderdelen.length,
     isVolledig: voltooideOnderdelen.length === onderdelen.length,
     status: voltooideOnderdelen.length === onderdelen.length ? "Voltooid" : "Gedeeltelijk",
+    weightUnit: "lb", weightUnitVersion: TRAINING_WEIGHT_UNIT_VERSION,
   };
 }

@@ -1,5 +1,6 @@
 import { OEFENING_IDS, TRAINING_SCHEMA_IDS, trainingSchemas } from "../data/trainingen.js";
 import { meldLokaleWijziging } from "../sync/localChanges.js";
+import { migreerTrainingsgewichten, TRAINING_WEIGHT_UNIT_VERSION } from "./trainingWeightMigration.js";
 
 export const HISTORIE_SCHEMA_VERSION = 1;
 export const HISTORIE_KEYS = {
@@ -123,6 +124,7 @@ function oefeningIdVoor(training, naam) {
 }
 
 export function normaliseerHistorieItem(item = {}) {
+  item = migreerTrainingsgewichten(item);
   const trainingsnaam = item.training || item.trainingsnaam || item.workoutName || item.naam || "Training";
   const datum = item.datum || item.date || item.eindTijd || item.endTime || null;
   const startTijd = item.startTijd ?? item.startTime ?? null;
@@ -148,6 +150,8 @@ export function normaliseerHistorieItem(item = {}) {
   const zonderId = {
     ...item,
     schemaVersion: HISTORIE_SCHEMA_VERSION,
+    weightUnit: "lb",
+    weightUnitVersion: TRAINING_WEIGHT_UNIT_VERSION,
     ...(schema ? { trainingSchemaId: schema.id } : {}),
     training: trainingsnaam,
     datum,

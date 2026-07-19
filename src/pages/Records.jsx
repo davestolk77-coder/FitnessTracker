@@ -9,7 +9,7 @@ function Records() {
     <AppScreen>
       <AppHeader eyebrow="Prestaties" title="Persoonlijke records" subtitle="Je hoogste gewicht per oefening." />
       {lijst.length === 0 ? <EmptyState icon="★" title="Nog geen records" description="Records worden berekend zodra je een training opslaat." /> : (
-        <div className="record-list">{lijst.map(([oefening, gewicht]) => <Card key={oefening} className="record-card"><div><StatusBadge>Persoonlijk record</StatusBadge><h2 style={{ marginTop: 10 }}>{oefening}</h2></div><strong className="record-value">{gewicht} kg</strong></Card>)}</div>
+        <div className="record-list">{lijst.map(([oefening, gewicht]) => <Card key={oefening} className="record-card"><div><StatusBadge>Persoonlijk record</StatusBadge><h2 style={{ marginTop: 10 }}>{oefening}</h2></div><strong className="record-value">{gewicht} lb</strong></Card>)}</div>
       )}
     </AppScreen>
   );

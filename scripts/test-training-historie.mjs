@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { TRAINING_A, trainingSchemas } from "../src/data/trainingen.js";
 import * as historieApi from "../src/utils/trainingHistorie.js";
+import { kilogramNaarPondStap, TRAINING_WEIGHT_UNIT_VERSION } from "../src/utils/trainingWeightMigration.js";
 
 class MemoryStorage {
   constructor(initieel = {}) {
@@ -163,8 +164,13 @@ assert.ok(localStorage.getItem("trainingHistorieBackup"));
 assert.ok(localStorage.getItem("trainingHistorieBackupPrevious"));
 assert.ok(localStorage.getItem("fitnessTrackerFullBackup"));
 
-assert.equal(historieApi.berekenPersoonlijkeRecords(historieApi.leesTrainingHistorie())["Chest Press"], 60);
-assert.equal(historieApi.vindLaatsteOefeningWaarden(historieApi.leesTrainingHistorie(), "Chest Press")[1].gewicht, "60");
+const gemigreerdeHistorie = historieApi.leesTrainingHistorie();
+const verwachtGewichtInPond = kilogramNaarPondStap(60);
+assert.equal(verwachtGewichtInPond, 130, "60 kg moet via de centrale migratiefunctie naar 130 lb worden afgerond");
+assert.equal(historieApi.berekenPersoonlijkeRecords(gemigreerdeHistorie)["Chest Press"], verwachtGewichtInPond);
+assert.equal(historieApi.vindLaatsteOefeningWaarden(gemigreerdeHistorie, "Chest Press")[1].gewicht, verwachtGewichtInPond);
+assert.equal(gemigreerdeHistorie.find((item) => item.trainingId === "bestaand-2").weightUnit, "lb");
+assert.equal(gemigreerdeHistorie.find((item) => item.trainingId === "bestaand-2").weightUnitVersion, TRAINING_WEIGHT_UNIT_VERSION);
 assert.equal(historieApi.maakKrachtGrafiekData(historieApi.leesTrainingHistorie(), "Chest Press").length, 2);
 
 const oudZonderId = {
@@ -193,7 +199,7 @@ for (const [index, oefening] of historieApi.getOntbrekendeOefeningen(oudGenormal
 assert.equal(oudGenormaliseerd.isVolledig, true, "later aanvullen van alle schema-oefeningen moet de training volledig maken");
 assert.equal(oudGenormaliseerd.status, "Voltooid");
 assert.equal(oudGenormaliseerd.voltooidAantal, 6);
-assert.equal(historieApi.leesTrainingHistorie().find((item) => item.trainingId === "ander-ongewijzigd").oefeningen["Chest Press"][1].gewicht, "80", "ander historie-item moet ongewijzigd blijven");
+assert.equal(historieApi.leesTrainingHistorie().find((item) => item.trainingId === "ander-ongewijzigd").oefeningen["Chest Press"][1].gewicht, kilogramNaarPondStap(80), "ander historie-item moet inhoudelijk behouden en eenmaal naar lb gemigreerd blijven");
 
 const zonderLatPull = historieApi.verwijderOefeningUitTraining(oudGenormaliseerd, "Lat Pull");
 historieApi.werkTrainingBij(oudGenormaliseerd.trainingId, zonderLatPull);

@@ -3,6 +3,7 @@ import CardioForm from "../components/CardioForm";
 import { AppHeader, AppScreen, Card, DangerButton, EmptyState, PrimaryButton, SecondaryButton, StatusBadge } from "../components/ui";
 import { getOntbrekendeOefeningen, getTrainingSchema, heeftCardio, importeerFitnessBackup, leesTrainingHistorie, maakFitnessBackupData, normaliseerHistorieItem, valideerFitnessBackup, verwijderOefeningUitTraining, verwijderTraining as verwijderTrainingUitHistorie, vindLaatsteOefeningWaarden, werkTrainingBij } from "../utils/trainingHistorie";
 import { useToast } from "../utils/toastContext";
+import { TRAINING_WEIGHT_OPTIONS } from "../utils/trainingWeightMigration";
 
 const kopieer = (waarde) => JSON.parse(JSON.stringify(waarde));
 const SETS = [1, 2, 3];
@@ -302,11 +303,11 @@ function Historie() {
               const vorigeSet = vorigeKrachtwaarden?.[setNummer];
               return (
                 <div key={setNummer}>
-                  {vorigeSet && <p className="previous-set">Vorige keer: {vorigeSet.gewicht || 0} kg × {vorigeSet.reps || 0}</p>}
+                  {vorigeSet && <p className="previous-set">Vorige keer: {vorigeSet.gewicht || 0} lb × {vorigeSet.reps || 0}</p>}
                   <div className="set-card">
                     <div className="set-card__title">Set {setNummer}</div>
                     <div className="set-fields">
-                      <div className="field"><label htmlFor={`add-${toevoegenOefening}-${setNummer}-kg`}>Gewicht (kg)</label><div className="stepper"><button type="button" aria-label={`Verlaag gewicht van ${toevoegenOefening}, set ${setNummer}`} onClick={() => stapToevoegSet(setNummer, "gewicht", -1)}>−</button><input id={`add-${toevoegenOefening}-${setNummer}-kg`} type="number" inputMode="decimal" value={setData.gewicht ?? ""} onChange={(event) => wijzigToevoegSet(setNummer, "gewicht", event.target.value)} /><button type="button" aria-label={`Verhoog gewicht van ${toevoegenOefening}, set ${setNummer}`} onClick={() => stapToevoegSet(setNummer, "gewicht", 1)}>+</button></div></div>
+                      <div className="field"><label htmlFor={`add-${toevoegenOefening}-${setNummer}-lb`}>Gewicht (lb)</label><select id={`add-${toevoegenOefening}-${setNummer}-lb`} value={setData.gewicht ?? ""} onChange={(event) => wijzigToevoegSet(setNummer, "gewicht", event.target.value)}><option value="" disabled>Kies gewicht</option>{TRAINING_WEIGHT_OPTIONS.map((gewicht) => <option key={gewicht} value={gewicht}>{gewicht} lb</option>)}</select></div>
                       <div className="field"><label htmlFor={`add-${toevoegenOefening}-${setNummer}-reps`}>Herhalingen</label><div className="stepper"><button type="button" aria-label={`Verlaag herhalingen van ${toevoegenOefening}, set ${setNummer}`} onClick={() => stapToevoegSet(setNummer, "reps", -1)}>−</button><input id={`add-${toevoegenOefening}-${setNummer}-reps`} type="number" inputMode="numeric" value={setData.reps ?? ""} onChange={(event) => wijzigToevoegSet(setNummer, "reps", event.target.value)} /><button type="button" aria-label={`Verhoog herhalingen van ${toevoegenOefening}, set ${setNummer}`} onClick={() => stapToevoegSet(setNummer, "reps", 1)}>+</button></div></div>
                     </div>
                   </div>
@@ -332,11 +333,11 @@ function Historie() {
             <h2>{oefening}</h2>
             <div className="sets">{Object.entries(sets || {}).map(([setNummer, setData]) => (
               <div key={setNummer}>
-                {vorigeWaardenVoor(oefening)?.[setNummer] && <p className="previous-set">Vorige keer: {vorigeWaardenVoor(oefening)[setNummer].gewicht || 0} kg × {vorigeWaardenVoor(oefening)[setNummer].reps || 0}</p>}
+                {vorigeWaardenVoor(oefening)?.[setNummer] && <p className="previous-set">Vorige keer: {vorigeWaardenVoor(oefening)[setNummer].gewicht || 0} lb × {vorigeWaardenVoor(oefening)[setNummer].reps || 0}</p>}
                 <div className="set-card">
                   <div className="set-card__title">Set {setNummer}</div>
                   <div className="set-fields">
-                    <div className="field"><label htmlFor={`edit-${oefening}-${setNummer}-kg`}>Gewicht (kg)</label><div className="stepper"><button type="button" aria-label={`Verlaag gewicht van ${oefening}, set ${setNummer}`} onClick={() => stapSet(oefening, setNummer, "gewicht", -1)}>−</button><input id={`edit-${oefening}-${setNummer}-kg`} type="number" inputMode="decimal" value={setData?.gewicht ?? ""} onChange={(event) => wijzigSet(oefening, setNummer, "gewicht", event.target.value)} /><button type="button" aria-label={`Verhoog gewicht van ${oefening}, set ${setNummer}`} onClick={() => stapSet(oefening, setNummer, "gewicht", 1)}>+</button></div></div>
+                    <div className="field"><label htmlFor={`edit-${oefening}-${setNummer}-lb`}>Gewicht (lb)</label><select id={`edit-${oefening}-${setNummer}-lb`} value={setData?.gewicht ?? ""} onChange={(event) => wijzigSet(oefening, setNummer, "gewicht", event.target.value)}><option value="" disabled>Kies gewicht</option>{TRAINING_WEIGHT_OPTIONS.map((gewicht) => <option key={gewicht} value={gewicht}>{gewicht} lb</option>)}</select></div>
                     <div className="field"><label htmlFor={`edit-${oefening}-${setNummer}-reps`}>Herhalingen</label><div className="stepper"><button type="button" aria-label={`Verlaag herhalingen van ${oefening}, set ${setNummer}`} onClick={() => stapSet(oefening, setNummer, "reps", -1)}>−</button><input id={`edit-${oefening}-${setNummer}-reps`} type="number" inputMode="numeric" value={setData?.reps ?? ""} onChange={(event) => wijzigSet(oefening, setNummer, "reps", event.target.value)} /><button type="button" aria-label={`Verhoog herhalingen van ${oefening}, set ${setNummer}`} onClick={() => stapSet(oefening, setNummer, "reps", 1)}>+</button></div></div>
                   </div>
                 </div>
@@ -378,7 +379,7 @@ function Historie() {
       {Object.entries(geselecteerdeTraining.oefeningen).map(([oefening, sets]) => (
         <Card key={oefening} className="history-exercise history-exercise--detail">
           <div className="history-exercise__heading"><strong>{oefening}</strong><DangerButton className="button--compact" onClick={() => vraagOefeningVerwijderen(oefening)}>Verwijderen</DangerButton></div>
-          {Object.keys(sets || {}).length === 0 ? <div className="history-set">Geen setwaarden opgeslagen.</div> : Object.entries(sets).map(([setNr, setData]) => <div key={setNr} className="history-set">Set {setNr}: {setData?.gewicht ?? 0} kg × {setData?.reps ?? 0}</div>)}
+          {Object.keys(sets || {}).length === 0 ? <div className="history-set">Geen setwaarden opgeslagen.</div> : Object.entries(sets).map(([setNr, setData]) => <div key={setNr} className="history-set">Set {setNr}: {setData?.gewicht ?? 0} lb × {setData?.reps ?? 0}</div>)}
         </Card>
       ))}
       {schema && <>

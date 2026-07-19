@@ -1,5 +1,5 @@
 export const CLOUD_SCHEMA_VERSION = 1;
-export const CLOUD_MIGRATION_VERSION = 1;
+export const CLOUD_MIGRATION_VERSION = 2;
 export const CLOUD_OWNER_KEY = "fitnessCloudDataOwnerUid";
 
 export function isPlainObject(value) {

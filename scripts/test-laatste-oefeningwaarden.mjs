@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import { OEFENING_IDS, TRAINING_A, TRAINING_B, VRIJE_TRAINING } from "../src/data/trainingen.js";
 import { berekenPersoonlijkeRecords, vindLaatsteCardioWaarden, vindLaatsteOefeningWaarden } from "../src/utils/trainingHistorie.js";
+import { TRAINING_WEIGHT_UNIT_VERSION } from "../src/utils/trainingWeightMigration.js";
 
 const kracht = (trainingId, training, trainingSchemaId, datum, naam, gewicht, extra = {}) => ({
   trainingId, training, trainingSchemaId, datum,
   oefeningen: { [naam]: gewicht === null ? {} : { 1: { gewicht, reps: "8" } } },
   oefeningIds: { [naam]: OEFENING_IDS[naam] }, cardio: {}, ...extra,
+  weightUnit: "lb", weightUnitVersion: TRAINING_WEIGHT_UNIT_VERSION,
 });
 
 const historie = [

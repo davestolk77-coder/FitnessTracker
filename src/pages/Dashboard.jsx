@@ -13,6 +13,7 @@ import { APP_VERSION } from "../config/appVersion";
 const DOELGEWICHT = 80;
 
 function begroetingVoorUur(uur) {
+  if (uur < 5) return "Goedenacht";
   if (uur < 12) return "Goedemorgen";
   if (uur < 18) return "Goedemiddag";
   return "Goedenavond";

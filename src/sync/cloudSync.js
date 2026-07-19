@@ -38,6 +38,7 @@ import {
   timestampMillis,
 } from "./syncModel";
 import { isZelfdeOperation, logCloudOperatie, maakCloudOperatie } from "./syncIdentity";
+import { migreerTrainingsgewichten, TRAINING_WEIGHT_UNIT_VERSION } from "../utils/trainingWeightMigration";
 import { moetCloudActieveTrainingToepassen } from "./activeTrainingConflict";
 
 const DOELGEWICHT = 80;
@@ -120,19 +121,21 @@ function cloudTrainingNaarLokaal(snapshot) {
     if (import.meta.env?.DEV) console.warn("[FitnessTracker sync] Ongeldig Firestore-historiedocument overgeslagen.", snapshot.id, data);
     return null;
   }
-  return normaliseerHistorieItem({
+  return normaliseerHistorieItem(migreerTrainingsgewichten({
     ...data,
+    _requiresWeightUnitMigration: Number(data.weightUnitVersion || 0) < TRAINING_WEIGHT_UNIT_VERSION,
     trainingId: snapshot.id,
     training: data.trainingNaam || data.training,
     updatedAtLocal: isoVanTimestamp(data.updatedAt),
     createdAtLocal: isoVanTimestamp(data.createdAt),
-  });
+  }));
 }
 
 function trainingDocument(training, operation) {
   const item = normaliseerHistorieItem(training);
   const createdMillis = timestampMillis(item.createdAtLocal || item.createdAt || item.datum || item.startTijd) || Date.now();
   const veilig = JSON.parse(JSON.stringify(item));
+  delete veilig._requiresWeightUnitMigration;
   return {
     ...veilig,
     id: item.trainingId,
@@ -151,6 +154,8 @@ function trainingDocument(training, operation) {
     createdAt: Timestamp.fromMillis(createdMillis),
     updatedAt: serverTimestamp(),
     schemaVersion: CLOUD_SCHEMA_VERSION,
+    weightUnit: "lb",
+    weightUnitVersion: TRAINING_WEIGHT_UNIT_VERSION,
     deviceId: operation.deviceId,
     operationId: operation.operationId,
   };
@@ -171,6 +176,8 @@ function activeDocument(sessie, operation) {
     restTimer: Number(sessie.timer ?? sessie.restTimer) || 0,
     status: sessie.status || "Actief",
     schemaVersion: CLOUD_SCHEMA_VERSION,
+    weightUnit: "lb",
+    weightUnitVersion: TRAINING_WEIGHT_UNIT_VERSION,
     deviceId: operation.deviceId,
     operationId: operation.operationId,
   };
@@ -188,7 +195,7 @@ function settingsDocument(instellingen, operation) {
 
 function cloudActiveNaarLokaal(data) {
   if (!geldigObject(data)) return null;
-  return {
+  return migreerTrainingsgewichten({
     ...data,
     trainingId: data.trainingId || data.sessionId,
     sessionId: data.sessionId || data.trainingId,
@@ -199,7 +206,7 @@ function cloudActiveNaarLokaal(data) {
     voltooideSets: data.voltooideSets || data.completedSets || [],
     timer: Number(data.timer ?? data.restTimer) || 0,
     updatedAtLocal: isoVanTimestamp(data.updatedAt),
-  };
+  });
 }
 
 function tombstoneRef(uid, entityType, entityId) {
@@ -210,7 +217,7 @@ async function schrijfHistorieBatch(uid, historie, bestaandeCloudHistorie = new 
   const refs = refsVoor(uid);
   const teUploaden = normaliseerSyncObjectArray(historie, "historiebatch").filter((training) => {
     const bestaand = bestaandeCloudHistorie.get(training.trainingId);
-    if (!bestaand || !bestaand.operationId || !bestaand.deviceId) return true;
+    if (!bestaand || bestaand._requiresWeightUnitMigration || !bestaand.operationId || !bestaand.deviceId) return true;
     const lokaalTijdstip = entityTimestamp(training);
     const cloudTijdstip = entityTimestamp(bestaand);
     return lokaalTijdstip > cloudTijdstip || (lokaalTijdstip === cloudTijdstip && rijkdomScore(training) > rijkdomScore(bestaand));
@@ -408,7 +415,13 @@ export async function voerVeiligeCloudMigratieUit(uid, { onConflict } = {}) {
     await syncInstellingen(uid);
   }
   await schrijfHistorieBatch(uid, samengevoegdeHistorie, cloudHistoriePerId);
-  if (actief) await syncActieveTraining(uid, actief);
+  if (actief) {
+    if (activeSnap.exists() && Number(activeSnap.data().weightUnitVersion || 0) < TRAINING_WEIGHT_UNIT_VERSION) {
+      const operation = maakCloudOperatie(`activeTraining/${actief.sessionId || actief.trainingId}`, "migreren");
+      logCloudOperatie(operation);
+      await setDoc(refs.active, activeDocument(actief, operation));
+    } else await syncActieveTraining(uid, actief);
+  }
 
   const controleHistorie = await getDocs(refs.history);
   const cloudIds = new Set(controleHistorie.docs.map((snapshot) => snapshot.id));

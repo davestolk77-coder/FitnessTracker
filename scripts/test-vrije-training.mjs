@@ -3,18 +3,21 @@ import { OEFENING_IDS, OUDE_TRAININGEN, TRAINING_A, TRAINING_B, VRIJE_OEFENINGEN
 import { maakTrainingResultaat } from "../src/utils/trainingSession.js";
 import { berekenPersoonlijkeRecords, normaliseerHistorieItem, vindLaatsteOefeningWaarden } from "../src/utils/trainingHistorie.js";
 import { mergeHistorieOpId } from "../src/sync/syncModel.js";
+import { TRAINING_WEIGHT_UNIT_VERSION } from "../src/utils/trainingWeightMigration.js";
+
+const pondEenheid = { weightUnit: "lb", weightUnitVersion: TRAINING_WEIGHT_UNIT_VERSION };
 
 assert.deepEqual(VRIJE_OEFENINGEN, [...OUDE_TRAININGEN[TRAINING_A], ...OUDE_TRAININGEN[TRAINING_B].slice(1)]);
 assert.equal(new Set(VRIJE_OEFENINGEN).size, VRIJE_OEFENINGEN.length, "samengevoegd schema mag geen dubbelen bevatten");
 
-const sessie = { trainingId: "vrij-1", training: VRIJE_TRAINING, trainingSchemaId: "vrije-training", startTijd: 1000, statussen: { "Chest Press": "Voltooid", "Leg Press": "Bezig" }, gegevens: { "Chest Press": { 1: { gewicht: "70", reps: "8" } }, "Leg Press": { 1: { gewicht: "100", reps: "10" } } }, cardio: {}, voltooideSets: ["Chest Press-1"] };
+const sessie = { trainingId: "vrij-1", training: VRIJE_TRAINING, trainingSchemaId: "vrije-training", startTijd: 1000, statussen: { "Chest Press": "Voltooid", "Leg Press": "Bezig" }, gegevens: { "Chest Press": { 1: { gewicht: "70", reps: "8" } }, "Leg Press": { 1: { gewicht: "100", reps: "10" } } }, cardio: {}, voltooideSets: ["Chest Press-1"], ...pondEenheid };
 const resultaat = maakTrainingResultaat(sessie, 61000);
 assert.equal(resultaat.status, "Gedeeltelijk");
 assert.deepEqual(Object.keys(resultaat.oefeningen), ["Chest Press"], "niet-opgeslagen oefeningen mogen niet in historie komen");
 assert.equal(resultaat.oefeningIds["Chest Press"], OEFENING_IDS["Chest Press"]);
 
-const oudA = normaliseerHistorieItem({ trainingId: "oud-a", training: TRAINING_A, oefeningen: { "Chest Press": { 1: { gewicht: "80", reps: "6" } } } });
-const oudB = normaliseerHistorieItem({ trainingId: "oud-b", training: TRAINING_B, oefeningen: { "Leg Press": { 1: { gewicht: "120", reps: "8" } } } });
+const oudA = normaliseerHistorieItem({ trainingId: "oud-a", training: TRAINING_A, oefeningen: { "Chest Press": { 1: { gewicht: "80", reps: "6" } } }, ...pondEenheid });
+const oudB = normaliseerHistorieItem({ trainingId: "oud-b", training: TRAINING_B, oefeningen: { "Leg Press": { 1: { gewicht: "120", reps: "8" } } }, ...pondEenheid });
 assert.equal(oudA.training, TRAINING_A); assert.equal(oudA.trainingSchemaId, "training-a");
 assert.equal(oudB.training, TRAINING_B); assert.equal(oudB.trainingSchemaId, "training-b");
 
