@@ -116,15 +116,22 @@
 .active-workout { padding-bottom: 8px; }
 .workout-progress { margin: -6px 2px 2px; }
 .exercise-overview { display: grid; gap: 12px; }
-.exercise-overview-card { width: 100%; min-height: 86px; display: grid; grid-template-columns: minmax(0,1fr) auto auto; align-items: center; gap: 12px; padding: 16px; color: var(--text); text-align: left; background: var(--card); border: 1px solid var(--surface-raised); border-radius: var(--radius); box-shadow: var(--shadow); cursor: pointer; transition: transform .15s ease, border-color .15s ease, background .15s ease; }
+.exercise-overview-card { width: 100%; min-height: 86px; display: flex; align-items: stretch; color: var(--text); text-align: left; background: var(--card); border: 1px solid var(--surface-raised); border-radius: var(--radius); box-shadow: var(--shadow); transition: transform .15s ease, border-color .15s ease, background .15s ease; overflow: hidden; }
 .exercise-overview-card:hover { border-color: rgba(34,197,94,.55); }
 .exercise-overview-card:active { transform: scale(.985); }
-.exercise-overview-card:focus-visible { outline: 3px solid rgba(34,197,94,.45); outline-offset: 2px; }
+.exercise-overview-card:focus-within { outline: 3px solid rgba(34,197,94,.45); outline-offset: 2px; }
 .exercise-overview-card.is-complete { border-color: rgba(34,197,94,.55); background: rgba(34,197,94,.09); }
+.exercise-overview-card__main { min-width: 0; flex: 1; display: grid; grid-template-columns: minmax(0,1fr) auto auto; align-items: center; gap: 12px; padding: 16px; color: inherit; text-align: left; background: transparent; border: 0; cursor: pointer; }
+.exercise-overview-card__main:focus-visible, .exercise-overview-card__delete:focus-visible { outline: 0; }
+.exercise-overview-card__delete { width: 48px; flex: 0 0 48px; color: #fca5a5; font-size: 1.25rem; background: rgba(239,68,68,.07); border: 0; border-left: 1px solid rgba(239,68,68,.2); cursor: pointer; }
+.exercise-overview-card__delete:hover { background: rgba(239,68,68,.16); }
 .exercise-overview-card__copy { min-width: 0; display: grid; gap: 5px; }
 .exercise-overview-card__copy strong { font-size: 1rem; overflow-wrap: anywhere; }
 .exercise-overview-card__copy small { color: var(--text-muted); line-height: 1.35; }
 .exercise-overview-card__arrow { color: var(--primary); font-size: 1.7rem; line-height: 1; }
+.add-exercise-button { margin-top: 14px; }
+.add-exercise-dialog form { display: grid; gap: 18px; }
+.field-error { margin: 7px 0 0; color: #fca5a5; font-size: .9rem; }
 .finish-hint { margin: -4px 8px 0; color: var(--text-muted); font-size: .86rem; text-align: center; }
 .exercise-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .exercise-header h2 { font-size: 1.25rem; }

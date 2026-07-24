@@ -2,38 +2,43 @@ import { useEffect, useRef, useState } from "react";
 import { OEFENING_IDS, TRAINING_SCHEMA_IDS, VRIJE_TRAINING, migreerActieveSessieNaarVrijeTraining, trainingen } from "../data/trainingen";
 import CardioForm from "../components/CardioForm";
 import { StopTrainingModal } from "../components/StopTrainingModal";
-import { AppHeader, AppScreen, Card, PrimaryButton, SecondaryButton, StatusBadge } from "../components/ui";
+import { AppHeader, AppScreen, Card, DangerButton, PrimaryButton, SecondaryButton, StatusBadge } from "../components/ui";
 import { leesJson } from "../utils/storage";
 import { berekenPersoonlijkeRecords, leesTrainingHistorie, maakNieuweTrainingId, voegTrainingToe, vindLaatsteCardioWaarden, vindLaatsteOefeningWaarden } from "../utils/trainingHistorie";
 import { useToast } from "../utils/toastContext";
-import { ACTIEVE_TRAINING_KEY, bewaarActieveTraining, verwijderActieveTraining } from "../sync/localCache";
+import { ACTIEVE_TRAINING_KEY, bewaarActieveTraining, leesInstellingen, schrijfInstellingen, verwijderActieveTraining } from "../sync/localCache";
 import { useCloudSync } from "../sync/syncContext";
 import { maakEenmaligeUitvoerder } from "../utils/eenmaligeUitvoerder";
 import { maakTrainingResultaat } from "../utils/trainingSession";
 import { bewaarRusttimerGeluidInstelling, leesRusttimerGeluidInstelling, maakRusttimerAlarmBewaker, ontgrendelRusttimerAudio, speelRusttimerSignaal } from "../utils/rusttimerAudio";
 import { bewaarRusttimerNotificatieInstelling, leesRusttimerNotificatieInstelling, maakRusttimerNotificatieBewaker, vraagRusttimerNotificatieToestemming } from "../utils/rusttimerNotificatie";
 import { TRAINING_WEIGHT_OPTIONS, TRAINING_WEIGHT_UNIT_VERSION } from "../utils/trainingWeightMigration";
+import { herstelAangepasteOefeningenUitData, leesAangepasteOefeningen, leesSchemaOefeningen, verwijderAangepasteOefening, verwijderGetombstonedeOefeningenUitSessie, verwijderOefeningUitSessie, voegAangepasteOefeningToe } from "../utils/customExercises";
 
 const SETS = [1, 2, 3];
 const huidigTijdstip = () => Date.now();
 
 function nieuweSessie(training = VRIJE_TRAINING) {
   const sessionId = maakNieuweTrainingId();
-  return { trainingId: sessionId, sessionId, trainingSchemaId: TRAINING_SCHEMA_IDS[training], training, oefeningIds: Object.fromEntries(trainingen[training].map((naam) => [naam, OEFENING_IDS[naam]])), gegevens: {}, cardio: {}, statussen: {}, voltooideSets: [], timer: 0, startTijd: huidigTijdstip(), status: "Actief", weightUnit: "lb", weightUnitVersion: TRAINING_WEIGHT_UNIT_VERSION };
+  const trainingSchemaId = TRAINING_SCHEMA_IDS[training];
+  const definities = leesSchemaOefeningen(trainingSchemaId, trainingen[training]);
+  const oefeningen = definities.map(({ naam }) => naam);
+  return { trainingId: sessionId, sessionId, trainingSchemaId, training, oefeningen, oefeningDefinities: definities.filter(({ id }) => id), oefeningIds: Object.fromEntries(definities.map(({ naam, id }) => [naam, id || OEFENING_IDS[naam]])), gegevens: {}, cardio: {}, statussen: {}, voltooideSets: [], timer: 0, startTijd: huidigTijdstip(), status: "Actief", weightUnit: "lb", weightUnitVersion: TRAINING_WEIGHT_UNIT_VERSION };
 }
 
 function herstelSessie(initialTraining) {
   if (initialTraining && TRAINING_SCHEMA_IDS[initialTraining]) return nieuweSessie(VRIJE_TRAINING);
   const opgeslagen = migreerActieveSessieNaarVrijeTraining(leesJson(ACTIEVE_TRAINING_KEY, null));
   if (!opgeslagen || !trainingen[opgeslagen.training]) return null;
-  return {
+  herstelAangepasteOefeningenUitData(opgeslagen);
+  return verwijderGetombstonedeOefeningenUitSessie({
     ...nieuweSessie(opgeslagen.training),
     ...opgeslagen,
     gegevens: opgeslagen.gegevens && typeof opgeslagen.gegevens === "object" ? opgeslagen.gegevens : {},
     cardio: opgeslagen.cardio && typeof opgeslagen.cardio === "object" ? opgeslagen.cardio : {},
     statussen: opgeslagen.statussen && typeof opgeslagen.statussen === "object" ? opgeslagen.statussen : {},
     voltooideSets: Array.isArray(opgeslagen.voltooideSets) ? opgeslagen.voltooideSets : [],
-  };
+  });
 }
 
 function Trainingen({ initialTraining, onTrainingClosed }) {
@@ -44,6 +49,10 @@ function Trainingen({ initialTraining, onTrainingClosed }) {
   const [bevestigOnvolledig, setBevestigOnvolledig] = useState(false);
   const [bevestigStoppen, setBevestigStoppen] = useState(false);
   const [bezigMetStoppen, setBezigMetStoppen] = useState(false);
+  const [toonNieuweOefening, setToonNieuweOefening] = useState(false);
+  const [nieuweOefeningNaam, setNieuweOefeningNaam] = useState("");
+  const [nieuweOefeningFout, setNieuweOefeningFout] = useState("");
+  const [teVerwijderenOefening, setTeVerwijderenOefening] = useState(null);
   const [rusttimerGeluid, setRusttimerGeluid] = useState(leesRusttimerGeluidInstelling);
   const [rusttimerNotificatie, setRusttimerNotificatie] = useState(() => leesRusttimerNotificatieInstelling() && globalThis.Notification?.permission === "granted");
   const [actieveRusttimerSet, setActieveRusttimerSet] = useState(null);
@@ -128,13 +137,13 @@ function Trainingen({ initialTraining, onTrainingClosed }) {
   };
 
   const haalVorigeSetOp = (oefening, setNummer) => {
-    return vindLaatsteOefeningWaarden(historie(), OEFENING_IDS[oefening])?.[setNummer] || null;
+    return vindLaatsteOefeningWaarden(historie(), sessie.oefeningIds?.[oefening] || OEFENING_IDS[oefening])?.[setNummer] || null;
   };
 
   const herstelVorigeWaarden = (oefening) => {
     const vorigeWaarden = oefening === "Cardio"
       ? vindLaatsteCardioWaarden(historie())
-      : vindLaatsteOefeningWaarden(historie(), OEFENING_IDS[oefening]);
+      : vindLaatsteOefeningWaarden(historie(), sessie.oefeningIds?.[oefening] || OEFENING_IDS[oefening]);
     if (vorigeWaarden) {
       setSessie((vorige) => oefening === "Cardio"
         ? { ...vorige, cardio: { ...vorigeWaarden } }
@@ -146,6 +155,53 @@ function Trainingen({ initialTraining, onTrainingClosed }) {
   };
 
   const haalRecordOp = (oefening) => berekenPersoonlijkeRecords(historie())[oefening] || 0;
+  const voegOefeningToe = (event) => {
+    event.preventDefault();
+    try {
+      const oefening = voegAangepasteOefeningToe(sessie.trainingSchemaId, nieuweOefeningNaam, sessie.oefeningen);
+      schrijfInstellingen({ ...(leesInstellingen() || {}), aangepasteOefeningen: leesAangepasteOefeningen() });
+      const legeSets = Object.fromEntries(SETS.map((nummer) => [nummer, { gewicht: "", reps: "" }]));
+      const volgende = {
+        ...sessie,
+        oefeningen: [...sessie.oefeningen, oefening.naam],
+        oefeningDefinities: [...(sessie.oefeningDefinities || []), oefening],
+        oefeningIds: { ...sessie.oefeningIds, [oefening.naam]: oefening.id },
+        gegevens: { ...sessie.gegevens, [oefening.naam]: legeSets },
+      };
+      setSessie(volgende);
+      bewaarActieveTraining(volgende, { urgent: true });
+      setNieuweOefeningNaam("");
+      setNieuweOefeningFout("");
+      setToonNieuweOefening(false);
+      showToast(`${oefening.naam} is toegevoegd`, "success");
+      requestAnimationFrame(() => document.querySelector(`[data-exercise-id="${oefening.id}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" }));
+    } catch (error) {
+      setNieuweOefeningFout(error.message);
+    }
+  };
+  const bevestigOefeningVerwijderen = () => {
+    const doel = teVerwijderenOefening;
+    if (!doel) return;
+    try {
+      verwijderAangepasteOefening(sessie.trainingSchemaId, doel.id);
+      schrijfInstellingen({ ...(leesInstellingen() || {}), aangepasteOefeningen: leesAangepasteOefeningen() });
+      const volgende = verwijderOefeningUitSessie(sessie, doel.id);
+      if (geselecteerd === doel.naam || actieveRusttimerSet?.oefening === doel.naam) {
+        rusttimerAlarm.current.annuleer();
+        rusttimerNotificatieBewaker.current.annuleer();
+        setActieveRusttimerSet(null);
+        volgende.timer = 0;
+        setGeselecteerd(null);
+      }
+      setSessie(volgende);
+      bewaarActieveTraining(volgende, { urgent: true });
+      setTeVerwijderenOefening(null);
+      showToast(`${doel.naam} is verwijderd`, "success");
+    } catch (error) {
+      setTeVerwijderenOefening(null);
+      showToast(error.message, "error");
+    }
+  };
   const wijzigSet = (oefening, setNummer, veld, waarde) => setSessie((vorige) => ({ ...vorige, gegevens: { ...vorige.gegevens, [oefening]: { ...vorige.gegevens[oefening], [setNummer]: { ...vorige.gegevens[oefening]?.[setNummer], [veld]: waarde } } } }));
   const stapWaarde = (oefening, setNummer, veld, stap) => {
     const huidig = Number(sessie.gegevens[oefening]?.[setNummer]?.[veld] || 0);
@@ -239,7 +295,7 @@ function Trainingen({ initialTraining, onTrainingClosed }) {
   };
 
   const trainingOpslaan = () => {
-    const onderdelen = trainingen[sessie.training];
+    const onderdelen = sessie.oefeningen;
     const aantalVoltooid = onderdelen.filter((oefening) => sessie.statussen[oefening] === "Voltooid").length;
     if (aantalVoltooid === 0) return;
     if (aantalVoltooid === onderdelen.length) {
@@ -251,7 +307,7 @@ function Trainingen({ initialTraining, onTrainingClosed }) {
 
   if (!sessie) return <AppScreen><AppHeader eyebrow="Aan de slag" title={VRIJE_TRAINING} subtitle="Kies zelf welke oefeningen je vandaag uitvoert." /><PrimaryButton className="button--full button--large" onClick={() => kiesTraining(VRIJE_TRAINING)}>Vrije training starten</PrimaryButton></AppScreen>;
 
-  const onderdelen = trainingen[sessie.training];
+  const onderdelen = sessie.oefeningen;
   const aantalVoltooid = onderdelen.filter((oefening) => sessie.statussen[oefening] === "Voltooid").length;
 
   if (!geselecteerd) return (
@@ -262,8 +318,11 @@ function Trainingen({ initialTraining, onTrainingClosed }) {
       <div className="exercise-overview">{onderdelen.map((oefening) => {
         const status = sessie.statussen[oefening] || "Nog niet gestart";
         const eersteSet = sessie.gegevens[oefening]?.[1] || haalVorigeSetOp(oefening, 1);
-        return <button type="button" key={oefening} className={`exercise-overview-card${status === "Voltooid" ? " is-complete" : ""}`} onClick={() => openOefening(oefening)}><span className="exercise-overview-card__copy"><strong>{oefening}</strong><small>{oefening === "Cardio" ? (sessie.cardio.type ? `${sessie.cardio.type}${sessie.cardio.tijd ? ` · ${sessie.cardio.tijd} min` : ""}` : "Cardioresultaat invoeren") : eersteSet ? `Set 1: ${eersteSet.gewicht || 0} lb × ${eersteSet.reps || 0}` : "Nog geen eerdere waarden"}</small></span><StatusBadge tone={status === "Bezig" ? "warning" : status === "Voltooid" ? "success" : "neutral"}>{status === "Voltooid" ? "✓ Voltooid" : status}</StatusBadge><span className="exercise-overview-card__arrow" aria-hidden="true">›</span></button>;
+        const oefeningId = sessie.oefeningIds?.[oefening];
+        const isAangepast = oefeningId?.startsWith("custom-");
+        return <div key={oefeningId || oefening} data-exercise-id={oefeningId} className={`exercise-overview-card${status === "Voltooid" ? " is-complete" : ""}`}><button type="button" className="exercise-overview-card__main" onClick={() => openOefening(oefening)}><span className="exercise-overview-card__copy"><strong>{oefening}</strong><small>{oefening === "Cardio" ? (sessie.cardio.type ? `${sessie.cardio.type}${sessie.cardio.tijd ? ` · ${sessie.cardio.tijd} min` : ""}` : "Cardioresultaat invoeren") : eersteSet?.gewicht || eersteSet?.reps ? `Set 1: ${eersteSet.gewicht || 0} lb × ${eersteSet.reps || 0}` : "Nog geen eerdere waarden"}</small></span><StatusBadge tone={status === "Bezig" ? "warning" : status === "Voltooid" ? "success" : "neutral"}>{status === "Voltooid" ? "✓ Voltooid" : status}</StatusBadge><span className="exercise-overview-card__arrow" aria-hidden="true">›</span></button>{isAangepast && <button type="button" className="exercise-overview-card__delete" aria-label={`${oefening} verwijderen`} onClick={() => setTeVerwijderenOefening({ id: oefeningId, naam: oefening })}>⌫</button>}</div>;
       })}</div>
+      <SecondaryButton className="button--full add-exercise-button" icon="+" onClick={() => setToonNieuweOefening(true)}>Oefening toevoegen</SecondaryButton>
       <PrimaryButton className="button--full button--large" icon="✓" disabled={aantalVoltooid === 0} onClick={trainingOpslaan}>Training afronden</PrimaryButton>
       {aantalVoltooid === 0 && <p className="finish-hint">Sla minimaal één oefening op om de training af te ronden.</p>}
       {bevestigStoppen && (
@@ -284,6 +343,36 @@ function Trainingen({ initialTraining, onTrainingClosed }) {
             <div className="confirmation-dialog__actions">
               <SecondaryButton onClick={() => setBevestigOnvolledig(false)}>Annuleren</SecondaryButton>
               <PrimaryButton onClick={trainingDefinitiefOpslaan}>Toch afronden</PrimaryButton>
+            </div>
+          </Card>
+        </div>
+      )}
+      {toonNieuweOefening && (
+        <div className="confirmation-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setToonNieuweOefening(false); }}>
+          <Card className="confirmation-dialog add-exercise-dialog" role="dialog" aria-modal="true" aria-labelledby="nieuwe-oefening-titel">
+            <form onSubmit={voegOefeningToe}>
+              <h2 id="nieuwe-oefening-titel">Nieuwe oefening</h2>
+              <div className="field">
+                <label htmlFor="nieuwe-oefening-naam">Naam oefening</label>
+                <input id="nieuwe-oefening-naam" autoFocus autoComplete="off" value={nieuweOefeningNaam} onChange={(event) => { setNieuweOefeningNaam(event.target.value); setNieuweOefeningFout(""); }} aria-invalid={Boolean(nieuweOefeningFout)} aria-describedby={nieuweOefeningFout ? "nieuwe-oefening-fout" : undefined} />
+                {nieuweOefeningFout && <p id="nieuwe-oefening-fout" className="field-error" role="alert">{nieuweOefeningFout}</p>}
+              </div>
+              <div className="confirmation-dialog__actions">
+                <SecondaryButton type="button" onClick={() => { setToonNieuweOefening(false); setNieuweOefeningFout(""); }}>Annuleren</SecondaryButton>
+                <PrimaryButton type="submit">Toevoegen</PrimaryButton>
+              </div>
+            </form>
+          </Card>
+        </div>
+      )}
+      {teVerwijderenOefening && (
+        <div className="confirmation-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setTeVerwijderenOefening(null); }}>
+          <Card className="confirmation-dialog delete-exercise-dialog" role="dialog" aria-modal="true" aria-labelledby="oefening-verwijderen-titel">
+            <h2 id="oefening-verwijderen-titel">Oefening verwijderen?</h2>
+            <p>{teVerwijderenOefening.naam} wordt uit {sessie.training} verwijderd. Eerder opgeslagen trainingsresultaten en historie blijven bewaard.</p>
+            <div className="confirmation-dialog__actions">
+              <SecondaryButton onClick={() => setTeVerwijderenOefening(null)}>Annuleren</SecondaryButton>
+              <DangerButton onClick={bevestigOefeningVerwijderen}>Verwijderen</DangerButton>
             </div>
           </Card>
         </div>

@@ -4,7 +4,7 @@ import { TRAINING_WEIGHT_UNIT_VERSION } from "./trainingWeightMigration.js";
 const SETS = [1, 2, 3];
 
 export function maakTrainingResultaat(sessie, eindTijd = Date.now()) {
-  const onderdelen = trainingen[sessie.training] || trainingen[VRIJE_TRAINING];
+  const onderdelen = sessie.oefeningen || trainingen[sessie.training] || trainingen[VRIJE_TRAINING];
   const voltooideOnderdelen = onderdelen.filter((oefening) => sessie.statussen?.[oefening] === "Voltooid");
   if (voltooideOnderdelen.length === 0) throw new Error("Sla minimaal één oefening op.");
   const voltooideKrachtoefeningen = voltooideOnderdelen.filter((oefening) => oefening !== "Cardio");
@@ -17,7 +17,8 @@ export function maakTrainingResultaat(sessie, eindTijd = Date.now()) {
     trainingSchemaId: sessie.trainingSchemaId || TRAINING_SCHEMA_IDS[VRIJE_TRAINING],
     datum: new Date(eindTijd).toISOString(), training: VRIJE_TRAINING,
     startTijd: sessie.startTijd, eindTijd, oefeningen,
-    oefeningIds: Object.fromEntries(voltooideKrachtoefeningen.map((naam) => [naam, OEFENING_IDS[naam]])),
+    oefeningIds: Object.fromEntries(voltooideKrachtoefeningen.map((naam) => [naam, sessie.oefeningIds?.[naam] || OEFENING_IDS[naam]])),
+    oefeningDefinities: (sessie.oefeningDefinities || []).filter(({ naam }) => voltooideKrachtoefeningen.includes(naam)),
     cardio: voltooideOnderdelen.includes("Cardio") ? sessie.cardio : {},
     duur, voltooideSets, voltooidAantal: voltooideOnderdelen.length,
     voltooideOefeningen: voltooideOnderdelen.length, totaalOefeningen: onderdelen.length,

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.9.0 - 2026-07-24
+
+- Vanuit een actieve training kunnen nu permanent eigen oefeningen aan het gebruikte schema worden toegevoegd.
+- Nieuwe oefeningen krijgen een stabiele unieke ID en standaard drie lege sets.
+- Eigen oefeningen gebruiken dezelfde historie-, record-, rusttimer- en pondlogica als vaste oefeningen en werken offline en via de bestaande cloudsync.
+- Aangepaste oefeningen kunnen na een bevestiging weer uit het schema worden verwijderd; bestaande historie en records blijven behouden.
+- Verwijdertombstones voorkomen dat bewust verwijderde oefeningen later opnieuw uit oude historie, imports of cloudgegevens worden hersteld.
+- Export/import en herstel uit actieve trainingen of historie nemen eigen oefeningdefinities mee.
+- Bestaande trainingsgegevens, historie, records, gewichten en instellingen uit versie 0.8.7 blijven ongewijzigd behouden.
+
 ## 0.8.7 - 2026-07-19
 
 - Trainingsgewichten gebruiken voortaan pond in vaste stappen van 10 lb; bestaande kilogramwaarden worden automatisch en eenmalig geconverteerd.

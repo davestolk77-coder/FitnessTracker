@@ -142,6 +142,7 @@ export function bewaarUidCache(uid) {
     gewichtHistorie: localStorage.getItem("gewichtHistorie"),
     huidigGewicht: localStorage.getItem("huidigGewicht"),
     settings: localStorage.getItem(INSTELLINGEN_KEY),
+    aangepasteOefeningen: localStorage.getItem("aangepasteOefeningen"),
   };
   Object.entries(waarden).forEach(([naam, waarde]) => {
     if (waarde !== null) localStorage.setItem(`fitness:${uid}:${naam}`, waarde);

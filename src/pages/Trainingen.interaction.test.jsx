@@ -154,4 +154,27 @@ describe("actieve oefening tijdens autosave", () => {
     expect(localStorage.getItem("fitnessTrackerRusttimerNotificatie")).toBe("false");
     expect(showToast).toHaveBeenCalledWith("Toestemming voor systeemnotificaties is niet verleend.", "info");
   });
+
+  it("verwijdert alleen een aangepaste oefening na bevestiging en toont geen verwijderknop bij vaste oefeningen", async () => {
+    const showToast = vi.fn();
+    const id = "custom-11111111-1111-4111-8111-111111111111";
+    localStorage.setItem("aangepasteOefeningen", JSON.stringify({
+      schemaVersion: 2,
+      schemas: { "vrije-training": [{ id, naam: "Cable Fly" }] },
+      verwijderdeIds: [],
+    }));
+    render(<AppOnderTest showToast={showToast} />);
+    await act(async () => { await Promise.resolve(); });
+
+    expect(screen.queryByRole("button", { name: "Chest Press verwijderen" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Cable Fly verwijderen" }));
+    expect(screen.getByRole("heading", { name: "Oefening verwijderen?" })).not.toBeNull();
+    expect(screen.getByText(/Eerder opgeslagen trainingsresultaten en historie blijven bewaard/)).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Verwijderen" }));
+
+    expect(screen.queryByText("Cable Fly")).toBeNull();
+    expect(screen.getByRole("button", { name: /Chest Press/ })).not.toBeNull();
+    expect(showToast).toHaveBeenCalledWith("Cable Fly is verwijderd", "success");
+    expect(JSON.parse(localStorage.getItem("aangepasteOefeningen")).verwijderdeIds).toContain(id);
+  });
 });

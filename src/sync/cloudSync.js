@@ -22,6 +22,7 @@ import {
   leesActieveTraining,
   leesInstellingen,
   meldCloudDataToegepast,
+  schrijfInstellingen,
   verwijderActieveTraining,
 } from "./localCache";
 import {
@@ -40,6 +41,7 @@ import {
 import { isZelfdeOperation, logCloudOperatie, maakCloudOperatie } from "./syncIdentity";
 import { migreerTrainingsgewichten, TRAINING_WEIGHT_UNIT_VERSION } from "../utils/trainingWeightMigration";
 import { moetCloudActieveTrainingToepassen } from "./activeTrainingConflict";
+import { voegCatalogiSamen } from "../utils/customExercises";
 
 const DOELGEWICHT = 80;
 
@@ -191,6 +193,20 @@ function settingsDocument(instellingen, operation) {
     deviceId: operation.deviceId,
     operationId: operation.operationId,
   };
+}
+
+function cloudInstellingenNaarLokaal(data) {
+  if (!geldigObject(data)) return null;
+  return { ...data, updatedAtLocal: isoVanTimestamp(data.updatedAt) };
+}
+
+function mergeInstellingen(lokaal, cloud) {
+  const winnaar = kiesNieuwsteGeldige(lokaal, cloud, { isGeldig: geldigObject }) || {};
+  const aangepasteOefeningen = voegCatalogiSamen(
+    cloud?.aangepasteOefeningen,
+    lokaal?.aangepasteOefeningen,
+  );
+  return { ...winnaar, aangepasteOefeningen };
 }
 
 function cloudActiveNaarLokaal(data) {
@@ -407,8 +423,8 @@ export async function voerVeiligeCloudMigratieUit(uid, { onConflict } = {}) {
     logCloudOperatie(profileOperation);
     await setDoc(refs.profile, profileDocument(profile, profileOperation));
   }
-  if (settingsSnap.exists() && !leesInstellingen()) {
-    localStorage.setItem("appInstellingen", JSON.stringify({ ...settingsSnap.data(), updatedAtLocal: isoVanTimestamp(settingsSnap.data().updatedAt) }));
+  if (settingsSnap.exists()) {
+    schrijfInstellingen(mergeInstellingen(leesInstellingen(), cloudInstellingenNaarLokaal(settingsSnap.data())), { notify: false });
   }
   if (leesInstellingen() && (!settingsSnap.exists() || !settingsSnap.data().operationId || !settingsSnap.data().deviceId
       || timestampMillis(leesInstellingen().updatedAtLocal) > timestampMillis(settingsSnap.data().updatedAt))) {
@@ -449,6 +465,18 @@ export function startCloudListeners(uid, { onData, onError } = {}) {
     bewaarUidCache(uid);
     meldCloudDataToegepast();
     onData?.();
+  }, onError));
+
+  unsubscribers.push(onSnapshot(refs.settings, { includeMetadataChanges: true }, (snapshot) => {
+    if (!snapshot.exists() || snapshot.metadata.hasPendingWrites) return;
+    const lokaal = leesInstellingen();
+    const merged = mergeInstellingen(lokaal, cloudInstellingenNaarLokaal(snapshot.data()));
+    if (JSON.stringify(merged.aangepasteOefeningen) !== JSON.stringify(lokaal?.aangepasteOefeningen)) {
+      schrijfInstellingen(merged, { notify: false });
+      bewaarUidCache(uid);
+      meldCloudDataToegepast();
+      onData?.();
+    }
   }, onError));
 
   unsubscribers.push(onSnapshot(refs.active, { includeMetadataChanges: true }, (snapshot) => {

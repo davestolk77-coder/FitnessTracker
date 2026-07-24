@@ -1,6 +1,7 @@
 import { OEFENING_IDS, TRAINING_SCHEMA_IDS, trainingSchemas } from "../data/trainingen.js";
 import { meldLokaleWijziging } from "../sync/localChanges.js";
 import { migreerTrainingsgewichten, TRAINING_WEIGHT_UNIT_VERSION } from "./trainingWeightMigration.js";
+import { herstelAangepasteOefeningenUitData, leesAangepasteOefeningen, voegCatalogiSamen, schrijfAangepasteOefeningen } from "./customExercises.js";
 
 export const HISTORIE_SCHEMA_VERSION = 1;
 export const HISTORIE_KEYS = {
@@ -279,7 +280,11 @@ function verzamelHerstelbronnen() {
 
 export function leesTrainingHistorie() {
   const primair = leesKey(HISTORIE_KEYS.primair);
-  if (primair.geldig && Array.isArray(primair.waarde)) return normaliseerTrainingHistorie(primair.waarde);
+  if (primair.geldig && Array.isArray(primair.waarde)) {
+    const historie = normaliseerTrainingHistorie(primair.waarde);
+    herstelAangepasteOefeningenUitData(historie);
+    return historie;
+  }
   const hersteld = verzamelHerstelbronnen();
   if (hersteld.length > 0) {
     console.warn(`[FitnessTracker opslag] Primaire historie is niet leesbaar; ${hersteld.length} item(s) zijn uit herstelbronnen geladen.`);
@@ -387,6 +392,7 @@ export function schrijfTrainingHistorie(nieuweHistorie, { explicieteVerwijdering
     if (!teruggelezen.geldig || gecontroleerd.length !== volgendeHistorie.length || historieFingerprint(gecontroleerd) !== historieFingerprint(volgendeHistorie)) {
       throw new Error("Teruglezen van de primaire historie is mislukt.");
     }
+    herstelAangepasteOefeningenUitData(gecontroleerd);
 
     const records = berekenPersoonlijkeRecords(gecontroleerd);
     if (localStorage.getItem("personalRecords") !== null) localStorage.setItem("personalRecords", JSON.stringify(records));
@@ -510,6 +516,7 @@ export function maakFitnessBackupData() {
     records: berekenPersoonlijkeRecords(trainingHistorie),
     actieveTraining: leesOptioneleJsonKey("actieveTraining"),
     instellingen: leesOptioneleJsonKey("appInstellingen"),
+    aangepasteOefeningen: leesAangepasteOefeningen(),
   };
 }
 
@@ -529,6 +536,7 @@ export function valideerFitnessBackup(inhoud) {
   if (!isObject(data) || !Array.isArray(data.trainingHistorie)) throw new Error("Dit is geen geldige FitnessTracker-back-up.");
   if (data.gewichtHistorie !== undefined && !Array.isArray(data.gewichtHistorie)) throw new Error("De gewichtshistorie in de back-up heeft een ongeldig formaat.");
   if (data.instellingen !== undefined && data.instellingen !== null && !isObject(data.instellingen)) throw new Error("De instellingen in de back-up hebben een ongeldig formaat.");
+  if (data.aangepasteOefeningen !== undefined && !isObject(data.aangepasteOefeningen)) throw new Error("De aangepaste oefeningen in de back-up hebben een ongeldig formaat.");
   const trainingHistorie = normaliseerTrainingHistorie(data.trainingHistorie);
   if (data.trainingHistorie.length > 0 && trainingHistorie.length === 0) throw new Error("De back-up bevat geen herkenbare trainingen.");
   return {
@@ -571,6 +579,11 @@ export function importeerFitnessBackup(inhoud) {
   if (localStorage.getItem("appInstellingen") === null && isObject(data.instellingen)) {
     localStorage.setItem("appInstellingen", JSON.stringify(data.instellingen));
   }
+  if (isObject(data.aangepasteOefeningen)) {
+    const huidig = leesAangepasteOefeningen();
+    schrijfAangepasteOefeningen(voegCatalogiSamen(data.aangepasteOefeningen, huidig));
+  }
+  herstelAangepasteOefeningenUitData(data.actieveTraining, opgeslagenHistorie);
   meldLokaleWijziging({ type: "full-sync", urgent: true });
   return opgeslagenHistorie;
 }
