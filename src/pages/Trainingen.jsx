@@ -1,12 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { OEFENING_IDS, TRAINING_SCHEMA_IDS, VRIJE_TRAINING, migreerActieveSessieNaarVrijeTraining, trainingen } from "../data/trainingen";
+import { OEFENING_IDS, TRAINING_SCHEMA_IDS, VRIJE_TRAINING, trainingen } from "../data/trainingen";
 import CardioForm from "../components/CardioForm";
 import { StopTrainingModal } from "../components/StopTrainingModal";
 import { AppHeader, AppScreen, Card, DangerButton, PrimaryButton, SecondaryButton, StatusBadge } from "../components/ui";
-import { leesJson } from "../utils/storage";
 import { berekenPersoonlijkeRecords, leesTrainingHistorie, maakNieuweTrainingId, voegTrainingToe, vindLaatsteCardioWaarden, vindLaatsteOefeningWaarden } from "../utils/trainingHistorie";
 import { useToast } from "../utils/toastContext";
-import { ACTIEVE_TRAINING_KEY, bewaarActieveTraining, leesInstellingen, schrijfInstellingen, verwijderActieveTraining } from "../sync/localCache";
+import { ACTIEVE_TRAINING_HERSTELKOPIE_KEY, bewaarActieveTraining, herstelLokaleTrainingSessie, leesInstellingen, schrijfInstellingen, verwijderActieveTraining } from "../sync/localCache";
 import { useCloudSync } from "../sync/syncContext";
 import { maakEenmaligeUitvoerder } from "../utils/eenmaligeUitvoerder";
 import { maakTrainingResultaat } from "../utils/trainingSession";
@@ -14,6 +13,7 @@ import { bewaarRusttimerGeluidInstelling, leesRusttimerGeluidInstelling, maakRus
 import { bewaarRusttimerNotificatieInstelling, leesRusttimerNotificatieInstelling, maakRusttimerNotificatieBewaker, vraagRusttimerNotificatieToestemming } from "../utils/rusttimerNotificatie";
 import { TRAINING_WEIGHT_OPTIONS, TRAINING_WEIGHT_UNIT_VERSION } from "../utils/trainingWeightMigration";
 import { herstelAangepasteOefeningenUitData, leesAangepasteOefeningen, leesSchemaOefeningen, verwijderAangepasteOefening, verwijderGetombstonedeOefeningenUitSessie, verwijderOefeningUitSessie, voegAangepasteOefeningToe } from "../utils/customExercises";
+import { normaliseerTrainingSessie } from "../utils/trainingSessionNormalization";
 
 const SETS = [1, 2, 3];
 const huidigTijdstip = () => Date.now();
@@ -23,22 +23,20 @@ function nieuweSessie(training = VRIJE_TRAINING) {
   const trainingSchemaId = TRAINING_SCHEMA_IDS[training];
   const definities = leesSchemaOefeningen(trainingSchemaId, trainingen[training]);
   const oefeningen = definities.map(({ naam }) => naam);
-  return { trainingId: sessionId, sessionId, trainingSchemaId, training, oefeningen, oefeningDefinities: definities.filter(({ id }) => id), oefeningIds: Object.fromEntries(definities.map(({ naam, id }) => [naam, id || OEFENING_IDS[naam]])), gegevens: {}, cardio: {}, statussen: {}, voltooideSets: [], timer: 0, startTijd: huidigTijdstip(), status: "Actief", weightUnit: "lb", weightUnitVersion: TRAINING_WEIGHT_UNIT_VERSION };
+  return normaliseerTrainingSessie({ trainingId: sessionId, sessionId, trainingSchemaId, training, oefeningen, oefeningDefinities: definities.filter(({ id }) => id), oefeningIds: Object.fromEntries(definities.map(({ naam, id }) => [naam, id || OEFENING_IDS[naam]])), gegevens: {}, cardio: {}, statussen: {}, voltooideSets: [], timer: 0, startTijd: huidigTijdstip(), status: "Actief", weightUnit: "lb", weightUnitVersion: TRAINING_WEIGHT_UNIT_VERSION });
 }
 
 function herstelSessie(initialTraining) {
   if (initialTraining && TRAINING_SCHEMA_IDS[initialTraining]) return nieuweSessie(VRIJE_TRAINING);
-  const opgeslagen = migreerActieveSessieNaarVrijeTraining(leesJson(ACTIEVE_TRAINING_KEY, null));
+  const opgeslagen = herstelLokaleTrainingSessie();
   if (!opgeslagen || !trainingen[opgeslagen.training]) return null;
   herstelAangepasteOefeningenUitData(opgeslagen);
-  return verwijderGetombstonedeOefeningenUitSessie({
+  const hersteld = verwijderGetombstonedeOefeningenUitSessie(normaliseerTrainingSessie({
     ...nieuweSessie(opgeslagen.training),
     ...opgeslagen,
-    gegevens: opgeslagen.gegevens && typeof opgeslagen.gegevens === "object" ? opgeslagen.gegevens : {},
-    cardio: opgeslagen.cardio && typeof opgeslagen.cardio === "object" ? opgeslagen.cardio : {},
-    statussen: opgeslagen.statussen && typeof opgeslagen.statussen === "object" ? opgeslagen.statussen : {},
-    voltooideSets: Array.isArray(opgeslagen.voltooideSets) ? opgeslagen.voltooideSets : [],
-  });
+  }));
+  bewaarActieveTraining(hersteld, { notify: false, verhoogGeneratie: false });
+  return hersteld;
 }
 
 function Trainingen({ initialTraining, onTrainingClosed }) {
@@ -295,7 +293,7 @@ function Trainingen({ initialTraining, onTrainingClosed }) {
   };
 
   const trainingOpslaan = () => {
-    const onderdelen = sessie.oefeningen;
+    const onderdelen = Array.isArray(sessie.oefeningen) ? sessie.oefeningen : [];
     const aantalVoltooid = onderdelen.filter((oefening) => sessie.statussen[oefening] === "Voltooid").length;
     if (aantalVoltooid === 0) return;
     if (aantalVoltooid === onderdelen.length) {
@@ -305,9 +303,12 @@ function Trainingen({ initialTraining, onTrainingClosed }) {
     setBevestigOnvolledig(true);
   };
 
-  if (!sessie) return <AppScreen><AppHeader eyebrow="Aan de slag" title={VRIJE_TRAINING} subtitle="Kies zelf welke oefeningen je vandaag uitvoert." /><PrimaryButton className="button--full button--large" onClick={() => kiesTraining(VRIJE_TRAINING)}>Vrije training starten</PrimaryButton></AppScreen>;
+  if (!sessie) {
+    const heeftHerstelkopie = localStorage.getItem(ACTIEVE_TRAINING_HERSTELKOPIE_KEY) !== null;
+    return <AppScreen><AppHeader eyebrow="Aan de slag" title={VRIJE_TRAINING} subtitle="Kies zelf welke oefeningen je vandaag uitvoert." />{heeftHerstelkopie && <Card className="status-message"><strong>Je vorige actieve training kon niet automatisch worden hersteld.</strong><p>Er is een veilige herstelkopie bewaard. Je kunt hieronder bewust een nieuwe training starten; je trainingshistorie blijft behouden.</p></Card>}<PrimaryButton className="button--full button--large" onClick={() => kiesTraining(VRIJE_TRAINING)}>Vrije training starten</PrimaryButton></AppScreen>;
+  }
 
-  const onderdelen = sessie.oefeningen;
+  const onderdelen = Array.isArray(sessie.oefeningen) ? sessie.oefeningen : [];
   const aantalVoltooid = onderdelen.filter((oefening) => sessie.statussen[oefening] === "Voltooid").length;
 
   if (!geselecteerd) return (

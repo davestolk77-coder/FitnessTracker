@@ -20,12 +20,12 @@ vi.mock("../sync/cloudSync", () => ({
   voltooiTrainingMetCloudVerificatie: vi.fn(async () => true),
 }));
 
-function AppOnderTest({ showToast = vi.fn() }) {
+function AppOnderTest({ showToast = vi.fn(), initialTraining = TRAINING_A }) {
   return (
     <ToastContext.Provider value={{ showToast, hideToast: vi.fn() }}>
       <AuthContext.Provider value={{ currentUser: { uid: "test-user" }, signOutUser: vi.fn() }}>
         <SyncProvider>
-          <Trainingen initialTraining={TRAINING_A} onTrainingClosed={vi.fn()} />
+          <Trainingen initialTraining={initialTraining} onTrainingClosed={vi.fn()} />
         </SyncProvider>
       </AuthContext.Provider>
     </ToastContext.Provider>
@@ -176,5 +176,28 @@ describe("actieve oefening tijdens autosave", () => {
     expect(screen.getByRole("button", { name: /Chest Press/ })).not.toBeNull();
     expect(showToast).toHaveBeenCalledWith("Cable Fly is verwijderd", "success");
     expect(JSON.parse(localStorage.getItem("aangepasteOefeningen")).verwijderdeIds).toContain(id);
+  });
+
+  it("rendert legacy-clouddata met oefeningen als object zonder filter-crash en behoudt invoer", async () => {
+    localStorage.setItem("actieveTraining", JSON.stringify({
+      trainingId: "legacy-productie",
+      sessionId: "legacy-productie",
+      training: "Vrije training",
+      trainingSchemaId: "vrije-training",
+      startTijd: 1000,
+      weightUnit: "lb",
+      weightUnitVersion: 1,
+      oefeningen: { "Chest Press": { 1: { gewicht: "80", reps: "9" } } },
+      gegevens: { "Chest Press": { 1: { gewicht: "80", reps: "9" } } },
+      statussen: { "Chest Press": "Bezig" },
+      voltooideSets: { "Chest Press-1": true },
+    }));
+    render(<AppOnderTest initialTraining={null} />);
+    await act(async () => { await Promise.resolve(); });
+
+    expect(screen.getByRole("heading", { name: "Vrije training", level: 1 })).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /Chest Press/ }));
+    expect(document.getElementById("Chest Press-1-lb").value).toBe("80");
+    expect(document.getElementById("Chest Press-1-reps").value).toBe("9");
   });
 });

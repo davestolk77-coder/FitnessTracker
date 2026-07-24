@@ -3,10 +3,12 @@ import { maakFitnessBackupData } from "../utils/trainingHistorie.js";
 import { CLOUD_OWNER_KEY, isPlainObject } from "./syncModel.js";
 import { meldLokaleWijziging } from "./localChanges.js";
 import { migreerTrainingsgewichten, TRAINING_WEIGHT_UNIT_VERSION } from "../utils/trainingWeightMigration.js";
+import { normaliseerTrainingSessie } from "../utils/trainingSessionNormalization.js";
 
 export const ACTIEVE_TRAINING_KEY = "actieveTraining";
 export const INSTELLINGEN_KEY = "appInstellingen";
 export const DATA_GESYNCHRONISEERD_EVENT = "fitnessTracker:data-gesynchroniseerd";
+export const ACTIEVE_TRAINING_HERSTELKOPIE_KEY = "actieveTrainingHerstelkopie:0.9.1";
 const NULL_NORMALISATIE_KEY = "fitnessSyncNullNormalizationV1";
 
 function normaliseerJsonArrayKey(sleutel) {
@@ -81,9 +83,20 @@ export function maakCloudMigratieBackup(uid) {
 
 export function leesActieveTraining() {
   const opgeslagen = leesJson(ACTIEVE_TRAINING_KEY, null);
-  const gemigreerd = migreerTrainingsgewichten(opgeslagen);
-  if (gemigreerd && gemigreerd !== opgeslagen) localStorage.setItem(ACTIEVE_TRAINING_KEY, JSON.stringify(gemigreerd));
+  if (opgeslagen === null) return null;
+  const gemigreerd = normaliseerTrainingSessie(migreerTrainingsgewichten(opgeslagen));
+  if (!gemigreerd) {
+    if (localStorage.getItem(ACTIEVE_TRAINING_HERSTELKOPIE_KEY) === null) {
+      localStorage.setItem(ACTIEVE_TRAINING_HERSTELKOPIE_KEY, localStorage.getItem(ACTIEVE_TRAINING_KEY) || JSON.stringify(opgeslagen));
+    }
+    return null;
+  }
+  if (JSON.stringify(gemigreerd) !== JSON.stringify(opgeslagen)) localStorage.setItem(ACTIEVE_TRAINING_KEY, JSON.stringify(gemigreerd));
   return gemigreerd;
+}
+
+export function herstelLokaleTrainingSessie() {
+  return leesActieveTraining();
 }
 
 function actieveInhoudFingerprint(sessie) {
@@ -98,7 +111,8 @@ function actieveInhoudFingerprint(sessie) {
 }
 
 export function bewaarActieveTraining(sessie, { urgent = false, notify = true, verhoogGeneratie = true } = {}) {
-  if (!sessie || typeof sessie !== "object") throw new Error("De actieve training heeft een ongeldig formaat.");
+  sessie = normaliseerTrainingSessie(sessie);
+  if (!sessie) throw new Error("De actieve training heeft een ongeldig formaat.");
   const nu = new Date().toISOString();
   const bestaand = leesActieveTraining();
   if (bestaand && actieveInhoudFingerprint(bestaand) === actieveInhoudFingerprint(sessie)) return bestaand;

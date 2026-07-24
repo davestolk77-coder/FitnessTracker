@@ -1,10 +1,13 @@
 import { OEFENING_IDS, TRAINING_SCHEMA_IDS, VRIJE_TRAINING, trainingen } from "../data/trainingen.js";
 import { TRAINING_WEIGHT_UNIT_VERSION } from "./trainingWeightMigration.js";
+import { normaliseerTrainingSessie } from "./trainingSessionNormalization.js";
 
 const SETS = [1, 2, 3];
 
 export function maakTrainingResultaat(sessie, eindTijd = Date.now()) {
-  const onderdelen = sessie.oefeningen || trainingen[sessie.training] || trainingen[VRIJE_TRAINING];
+  sessie = normaliseerTrainingSessie(sessie);
+  if (!sessie) throw new Error("De actieve training heeft een ongeldig formaat.");
+  const onderdelen = Array.isArray(sessie.oefeningen) ? sessie.oefeningen : trainingen[sessie.training] || trainingen[VRIJE_TRAINING];
   const voltooideOnderdelen = onderdelen.filter((oefening) => sessie.statussen?.[oefening] === "Voltooid");
   if (voltooideOnderdelen.length === 0) throw new Error("Sla minimaal één oefening op.");
   const voltooideKrachtoefeningen = voltooideOnderdelen.filter((oefening) => oefening !== "Cardio");

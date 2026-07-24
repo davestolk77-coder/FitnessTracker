@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.1 - 2026-07-24
+
+- De crash op de trainingspagina bij oudere of afwijkend gevormde actieve sessies is opgelost.
+- Legacy- en cloudsessies worden voortaan centraal en idempotent naar het actuele sessieformaat gemigreerd voordat de UI ze gebruikt.
+- Bestaande gewichten, herhalingen, statussen, voltooide sets en stabiele oefening-ID's blijven bij automatisch herstel behouden.
+
 ## 0.9.0 - 2026-07-24
 
 - Vanuit een actieve training kunnen nu permanent eigen oefeningen aan het gebruikte schema worden toegevoegd.

@@ -42,6 +42,7 @@ import { isZelfdeOperation, logCloudOperatie, maakCloudOperatie } from "./syncId
 import { migreerTrainingsgewichten, TRAINING_WEIGHT_UNIT_VERSION } from "../utils/trainingWeightMigration";
 import { moetCloudActieveTrainingToepassen } from "./activeTrainingConflict";
 import { voegCatalogiSamen } from "../utils/customExercises";
+import { normaliseerTrainingSessie } from "../utils/trainingSessionNormalization";
 
 const DOELGEWICHT = 80;
 
@@ -211,7 +212,7 @@ function mergeInstellingen(lokaal, cloud) {
 
 function cloudActiveNaarLokaal(data) {
   if (!geldigObject(data)) return null;
-  return migreerTrainingsgewichten({
+  return normaliseerTrainingSessie(migreerTrainingsgewichten({
     ...data,
     trainingId: data.trainingId || data.sessionId,
     sessionId: data.sessionId || data.trainingId,
@@ -222,7 +223,7 @@ function cloudActiveNaarLokaal(data) {
     voltooideSets: data.voltooideSets || data.completedSets || [],
     timer: Number(data.timer ?? data.restTimer) || 0,
     updatedAtLocal: isoVanTimestamp(data.updatedAt),
-  });
+  }));
 }
 
 function tombstoneRef(uid, entityType, entityId) {
